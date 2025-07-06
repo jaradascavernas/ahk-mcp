@@ -84,6 +84,18 @@ Validates code syntax and coding standards.
 }
 ```
 
+#### `ahk_analyze`
+Comprehensive script analysis with contextual documentation.
+
+```typescript
+{
+  code: string,                      // AutoHotkey v2 code to analyze
+  includeDocumentation?: boolean,    // Include documentation for built-in elements (default: true)
+  includeUsageExamples?: boolean,    // Include usage examples (default: false)
+  analyzeComplexity?: boolean        // Analyze code complexity (default: false)
+}
+```
+
 ### Documentation Tools
 
 #### `analyze_code`
@@ -153,6 +165,22 @@ Get class and method information.
 // - Using "new" keyword
 ```
 
+### Script Analysis Example
+```typescript
+// Comprehensive script analysis
+{
+  "code": "myVar := A_WorkingDir\nMsgBox('Hello')\n^j::Send('Text')",
+  "includeDocumentation": true
+}
+
+// Returns detailed analysis:
+// - Built-in variables used (A_WorkingDir with documentation)
+// - Built-in functions used (MsgBox with parameters)
+// - Hotkeys defined (Ctrl+J)
+// - Suggestions for improvements
+// - Code complexity metrics
+```
+
 
 
 ## 🏗️ Project Structure
@@ -169,7 +197,9 @@ ahk-server-v2/
 │   │   └── diagnostics.ts     # Error detection
 │   ├── tools/                  # MCP tool implementations
 │   │   ├── ahk-complete.ts    # Completion tool
-│   │   └── ahk-diagnostics.ts # Diagnostics tool
+│   │   ├── ahk-diagnostics.ts # Diagnostics tool
+│   │   ├── ahk-analyze.ts     # Script analysis tool
+│   │   └── ahk-prompts.ts     # Built-in prompts
 │   ├── types/                  # TypeScript definitions
 │   │   ├── lsp-types.ts       # LSP-like types
 │   │   ├── ahk-ast.ts         # AutoHotkey AST types

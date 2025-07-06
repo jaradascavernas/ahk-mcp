@@ -1,1 +1,265 @@
-{} 
+{
+  "version": "1.0",
+  "description": "AutoHotkey v2 Documentation Schema",
+  "categories": {
+    "BuiltInVariables": {
+      "count": 11,
+      "fields": [
+        "Description",
+        "Name",
+        "Parameters",
+        "Path",
+        "ReturnType",
+        "Type"
+      ],
+      "samples": [
+        {
+          "Path": "",
+          "Name": "A_Desktop",
+          "Type": "Variable",
+          "ReturnType": "String",
+          "Description": "The full path and name of the current user's desktop folder. For example: C:\\Users\\YourName\\Desktop",
+          "Parameters": ""
+        },
+        {
+          "Path": "",
+          "Name": "A_DesktopCommon",
+          "Type": "Variable",
+          "ReturnType": "String",
+          "Description": "The full path and name of the all-users desktop folder. For example: C:\\Users\\Public\\Desktop",
+          "Parameters": ""
+        },
+        {
+          "Path": "",
+          "Name": "A_IsAdmin",
+          "Type": "Variable",
+          "ReturnType": "Integer",
+          "Description": "Contains 1 if the current user has admin rights, otherwise 0.",
+          "Parameters": ""
+        }
+      ]
+    },
+    "Classes": {
+      "count": 116,
+      "fields": [
+        "Description",
+        "Name",
+        "Parameters",
+        "Path",
+        "ReturnType",
+        "Type"
+      ],
+      "samples": [
+        {
+          "Path": "",
+          "Name": "Object",
+          "Type": "Class",
+          "ReturnType": "",
+          "Description": "The base class for all objects in AutoHotkey.",
+          "Parameters": ""
+        },
+        {
+          "Path": "Object",
+          "Name": "HasOwnProp(Name)",
+          "Type": "Method",
+          "ReturnType": "Boolean",
+          "Description": "Returns true if the object has a property with the specified name.",
+          "Parameters": ""
+        },
+        {
+          "Path": "Object",
+          "Name": "Clone()",
+          "Type": "Method",
+          "ReturnType": "Object",
+          "Description": "Creates a shallow copy of the object.",
+          "Parameters": ""
+        }
+      ]
+    },
+    "Directives": {
+      "count": 22,
+      "fields": [
+        "Description",
+        "Name",
+        "Parameters",
+        "Path",
+        "ReturnType",
+        "Type"
+      ],
+      "samples": [
+        {
+          "Path": "",
+          "Name": "#ClipboardTimeout",
+          "Type": "Directive",
+          "ReturnType": "",
+          "Description": "Changes how long the script keeps trying to access the clipboard when the first attempt fails.",
+          "Parameters": "Required Milliseconds(Unknown)"
+        },
+        {
+          "Path": "",
+          "Name": "#DllLoad",
+          "Type": "Directive",
+          "ReturnType": "",
+          "Description": "Loads a DLL or EXE file before the script starts executing.",
+          "Parameters": "Optional FileOrDirName(Unknown)"
+        },
+        {
+          "Path": "",
+          "Name": "#ErrorStdOut",
+          "Type": "Directive",
+          "ReturnType": "",
+          "Description": "Sends any syntax error that prevents a script from launching to the standard error stream (stderr) rather than displaying a dialog.",
+          "Parameters": "Optional Encoding(Unknown)"
+        }
+      ]
+    },
+    "FlowControls": {
+      "count": 19,
+      "fields": [
+        "Description",
+        "Name",
+        "Parameters",
+        "Path",
+        "ReturnType",
+        "Type"
+      ],
+      "samples": [
+        {
+          "Path": "",
+          "Name": "Break",
+          "Type": "FlowControl",
+          "ReturnType": "",
+          "Description": "",
+          "Parameters": "Optional label(Unknown)"
+        },
+        {
+          "Path": "",
+          "Name": "Catch",
+          "Type": "FlowControl",
+          "ReturnType": "",
+          "Description": "",
+          "Parameters": ""
+        },
+        {
+          "Path": "",
+          "Name": "Continue",
+          "Type": "FlowControl",
+          "ReturnType": "",
+          "Description": "",
+          "Parameters": "Optional LoopLabel(Unknown)"
+        }
+      ]
+    },
+    "Functions": {
+      "count": 42,
+      "fields": [
+        "Description",
+        "Name",
+        "Parameters",
+        "Path",
+        "ReturnType",
+        "Type"
+      ],
+      "samples": [
+        {
+          "Path": "",
+          "Name": "MsgBox(Text, Title, Options)",
+          "Type": "Method",
+          "ReturnType": "Integer",
+          "Description": "Displays a message box with specified text, title, and options.",
+          "Parameters": ""
+        },
+        {
+          "Path": "",
+          "Name": "FileExist(FilePattern)",
+          "Type": "Method",
+          "ReturnType": "String",
+          "Description": "Checks if a file or folder exists and returns its attributes.",
+          "Parameters": ""
+        },
+        {
+          "Path": "",
+          "Name": "WinExist(WinTitle, WinText, ExcludeTitle, ExcludeText)",
+          "Type": "Method",
+          "ReturnType": "Integer",
+          "Description": "Checks if a specified window exists.",
+          "Parameters": ""
+        }
+      ]
+    },
+    "Module": {
+      "count": 1031,
+      "fields": [
+        "Description",
+        "Name",
+        "Parameters",
+        "Path",
+        "ReturnType",
+        "Type"
+      ],
+      "samples": [
+        {
+          "Path": "",
+          "Name": "#ClipboardTimeout",
+          "Type": "Key",
+          "ReturnType": "",
+          "Description": "",
+          "Parameters": "Milliseconds"
+        },
+        {
+          "Path": "",
+          "Name": "#CommentFlag",
+          "Type": "Key",
+          "ReturnType": "",
+          "Description": "",
+          "Parameters": "NewString"
+        },
+        {
+          "Path": "",
+          "Name": "#Delimiter",
+          "Type": "Key",
+          "ReturnType": "",
+          "Description": "",
+          "Parameters": ""
+        }
+      ]
+    },
+    "Operators": {
+      "count": 64,
+      "fields": [
+        "Description",
+        "Name",
+        "Parameters",
+        "Path",
+        "ReturnType",
+        "Type"
+      ],
+      "samples": [
+        {
+          "Path": "",
+          "Name": "(Expression)",
+          "Type": "Operator",
+          "ReturnType": "",
+          "Description": "Any sub-expression enclosed in parentheses. For example, (3 + 2) * 2 forces 3 + 2 to be evaluated first. For a multi-statement expression, the result of the last statement is returned. For example, (a := 1, b := 2, c := 3) returns 3.",
+          "Parameters": ""
+        },
+        {
+          "Path": "",
+          "Name": "Fn()",
+          "Type": "Operator",
+          "ReturnType": "",
+          "Description": "Function call. There must be no space between the function name or expression and the open parenthesis which begins the parameter list. For details, see Function Calls.",
+          "Parameters": ""
+        },
+        {
+          "Path": "",
+          "Name": "Fn(Params*)",
+          "Type": "Operator",
+          "ReturnType": "",
+          "Description": "Variadic function call. Params is an enumerable object (an object with an __Enum method), such as an Array containing parameter values.",
+          "Parameters": ""
+        }
+      ]
+    }
+  }
+}

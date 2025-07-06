@@ -36,6 +36,13 @@ export interface AhkDiagnosticsArgs {
   severity?: 'error' | 'warning' | 'info' | 'all';
 }
 
+export interface AhkAnalyzeArgs {
+  code: string;
+  includeDocumentation?: boolean;
+  includeUsageExamples?: boolean;
+  analyzeComplexity?: boolean;
+}
+
 export interface AhkGotoArgs {
   code: string;
   position: Position;

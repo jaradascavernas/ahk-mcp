@@ -8,6 +8,7 @@ import { AhkCompleteTool, ahkCompleteToolDefinition } from './tools/ahk-complete
 import { AhkDiagnosticsTool, ahkDiagnosticsToolDefinition } from './tools/ahk-diagnostics.js';
 import { AhkSummaryTool, ahkSummaryToolDefinition } from './tools/ahk-summary.js';
 import { AhkPromptsTool, ahkPromptsToolDefinition, PROMPTS } from './tools/ahk-prompts.js';
+import { AhkAnalyzeTool, ahkAnalyzeToolDefinition } from './tools/ahk-analyze.js';
 export class AutoHotkeyMcpServer {
     constructor() {
         this.server = new Server({
@@ -28,6 +29,7 @@ export class AutoHotkeyMcpServer {
         this.ahkDiagnosticsToolInstance = new AhkDiagnosticsTool();
         this.ahkSummaryToolInstance = new AhkSummaryTool();
         this.ahkPromptsToolInstance = new AhkPromptsTool();
+        this.ahkAnalyzeToolInstance = new AhkAnalyzeTool();
         this.setupToolHandlers();
         this.setupPromptHandlers();
     }
@@ -44,6 +46,7 @@ export class AutoHotkeyMcpServer {
                     ahkDiagnosticsToolDefinition,
                     ahkSummaryToolDefinition,
                     ahkPromptsToolDefinition,
+                    ahkAnalyzeToolDefinition,
                 ],
             };
         });
@@ -61,6 +64,8 @@ export class AutoHotkeyMcpServer {
                         return await this.ahkSummaryToolInstance.execute();
                     case 'ahk_prompts':
                         return await this.ahkPromptsToolInstance.execute();
+                    case 'ahk_analyze':
+                        return await this.ahkAnalyzeToolInstance.execute(args);
                     default:
                         logger.error(`Unknown tool: ${name}`);
                         throw new Error(`Unknown tool: ${name}`);
