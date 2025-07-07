@@ -5,8 +5,10 @@ import {
   ListToolsRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { initializeDataLoader } from './core/loader.js';
+import { initializeDataLoader, getAhkIndex } from './core/loader.js';
 import logger from './logger.js';
 
 // Import tool classes and definitions
@@ -15,6 +17,8 @@ import { AhkDiagnosticsTool, ahkDiagnosticsToolDefinition } from './tools/ahk-di
 import { AhkSummaryTool, ahkSummaryToolDefinition } from './tools/ahk-summary.js';
 import { AhkPromptsTool, ahkPromptsToolDefinition, PROMPTS } from './tools/ahk-prompts.js';
 import { AhkAnalyzeTool, ahkAnalyzeToolDefinition } from './tools/ahk-analyze.js';
+import { AhkContextInjectorTool, ahkContextInjectorToolDefinition } from './tools/ahk-context-injector.js';
+import { AhkAutoContextProvider } from './tools/ahk-auto-context.js';
 
 export class AutoHotkeyMcpServer {
   private server: Server;
@@ -23,6 +27,7 @@ export class AutoHotkeyMcpServer {
   private ahkSummaryToolInstance: AhkSummaryTool;
   private ahkPromptsToolInstance: AhkPromptsTool;
   private ahkAnalyzeToolInstance: AhkAnalyzeTool;
+  private ahkContextInjectorToolInstance: AhkContextInjectorTool;
 
   constructor() {
     this.server = new Server(
@@ -36,6 +41,7 @@ export class AutoHotkeyMcpServer {
         capabilities: {
           tools: {},
           prompts: {},
+          resources: {},
           fileExtensions: ['.ahk'],
           languages: ['autohotkey', 'ahk'],
         },
@@ -48,9 +54,11 @@ export class AutoHotkeyMcpServer {
     this.ahkSummaryToolInstance = new AhkSummaryTool();
     this.ahkPromptsToolInstance = new AhkPromptsTool();
     this.ahkAnalyzeToolInstance = new AhkAnalyzeTool();
+    this.ahkContextInjectorToolInstance = new AhkContextInjectorTool();
 
     this.setupToolHandlers();
     this.setupPromptHandlers();
+    this.setupResourceHandlers();
   }
 
   /**
@@ -68,6 +76,7 @@ export class AutoHotkeyMcpServer {
           ahkSummaryToolDefinition,
           ahkPromptsToolDefinition,
           ahkAnalyzeToolDefinition,
+          ahkContextInjectorToolDefinition,
         ],
       };
     });
@@ -94,6 +103,9 @@ export class AutoHotkeyMcpServer {
 
           case 'ahk_analyze':
             return await this.ahkAnalyzeToolInstance.execute(args as any);
+
+          case 'ahk_context_injector':
+            return await this.ahkContextInjectorToolInstance.execute(args as any);
 
           default:
             logger.error(`Unknown tool: ${name}`);
@@ -160,6 +172,88 @@ export class AutoHotkeyMcpServer {
       .replace(/[^a-z0-9\s]/g, '') // Remove special characters
       .replace(/\s+/g, '-') // Replace spaces with hyphens
       .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+  }
+
+  /**
+   * Setup MCP resource handlers for automatic context injection
+   */
+  private setupResourceHandlers(): void {
+    // List resources handler
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      logger.debug('Listing available AutoHotkey resources');
+      
+      return {
+        resources: [
+          {
+            uri: 'ahk://context/auto',
+            name: 'AutoHotkey Auto-Context',
+            description: 'Automatically provides relevant AutoHotkey documentation based on detected keywords',
+            mimeType: 'text/markdown'
+          },
+          {
+            uri: 'ahk://docs/functions',
+            name: 'AutoHotkey Functions Reference',
+            description: 'Complete reference of AutoHotkey v2 built-in functions',
+            mimeType: 'application/json'
+          },
+          {
+            uri: 'ahk://docs/variables',
+            name: 'AutoHotkey Variables Reference', 
+            description: 'Complete reference of AutoHotkey v2 built-in variables',
+            mimeType: 'application/json'
+          }
+        ]
+      };
+    });
+
+    // Read resource handler
+    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const { uri } = request.params;
+      
+      logger.info(`Reading resource: ${uri}`);
+
+      if (uri === 'ahk://context/auto') {
+        // This would normally be triggered by analyzing user input
+        // For now, return a placeholder
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'text/markdown',
+              text: '## 🎯 AutoHotkey Context Available\n\nUse the `ahk_context_injector` tool to analyze your prompts and get relevant AutoHotkey documentation automatically injected.'
+            }
+          ]
+        };
+      }
+
+      if (uri === 'ahk://docs/functions') {
+        const ahkIndex = getAhkIndex();
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: JSON.stringify(ahkIndex?.functions || [], null, 2)
+            }
+          ]
+        };
+      }
+
+      if (uri === 'ahk://docs/variables') {
+        const ahkIndex = getAhkIndex();
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json', 
+              text: JSON.stringify(ahkIndex?.variables || [], null, 2)
+            }
+          ]
+        };
+      }
+
+      throw new Error(`Resource not found: ${uri}`);
+    });
   }
 
   /**
