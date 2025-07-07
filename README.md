@@ -1,13 +1,8 @@
 <div align="center">
   <h1>AutoHotkey v2 MCP Server</h1>
-  
   <p>
-    <strong>Model Context Protocol (MCP) server for AutoHotkey v2</strong>
+    <strong>Model Context Protocol</strong>
   </p>
-  <p>
-    <strong>Language Server Protocol-like capabilities including automatic context injection, prompt management, and coding standards validation.</strong>
-  </p>
-  
   <p>
     <a href="#features"><img src="https://img.shields.io/badge/Features-blue?style=for-the-badge" alt="Features"></a>
     <a href="#installation"><img src="https://img.shields.io/badge/Install-green?style=for-the-badge" alt="Installation"></a>
@@ -25,7 +20,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Example](#Example)
+- [Example](#example)
 - [Features](#features)
   - [LSP-like Capabilities](#lsp-like-capabilities)
   - [AutoHotkey v2 Specific Features](#autohotkey-v2-specific-features)
@@ -38,6 +33,7 @@
 - [Built-in AutoHotkey Prompts](#built-in-autohotkey-prompts)
 - [Documentation Data](#documentation-data)
 - [License](#license)
+
 ## Example
 
 An overly simplistic example: 
