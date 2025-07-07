@@ -33,6 +33,7 @@
 - [Built-in AutoHotkey Prompts](#built-in-autohotkey-prompts)
 - [Documentation Data](#documentation-data)
 - [License](#license)
+- [🎯 MCP Resources](#mcp-resources)
 
 ## Example
 
@@ -192,6 +193,30 @@ The server includes comprehensive AutoHotkey v2 documentation:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🎯 MCP Resources
+
+The server exposes comprehensive AutoHotkey documentation and templates through MCP Resources:
+
+### **Documentation Resources**
+- **`ahk://context/auto`** - Smart contextual AutoHotkey documentation
+- **`ahk://docs/functions`** - Complete AutoHotkey v2 functions reference
+- **`ahk://docs/variables`** - Complete AutoHotkey v2 variables reference  
+- **`ahk://docs/classes`** - Complete AutoHotkey v2 classes reference
+- **`ahk://docs/methods`** - Complete AutoHotkey v2 methods reference
+
+### **Script Templates**
+Ready-to-use AutoHotkey v2 script templates:
+- **`ahk://templates/file-system-watcher`** - Monitor directories for file changes
+- **`ahk://templates/clipboard-manager`** - GUI clipboard editor with text transformations
+- **`ahk://templates/cpu-monitor`** - System CPU usage monitor with tooltips
+- **`ahk://templates/hotkey-toggle`** - Dynamic hotkey management system
+
+### **Live System Data**
+- **`ahk://system/clipboard`** - Real-time clipboard information
+- **`ahk://system/info`** - System and environment information
+
+*Resources are automatically available in compatible MCP clients like Claude Desktop. Users can select resources to include as context for their AutoHotkey development.*
 
 ---
 

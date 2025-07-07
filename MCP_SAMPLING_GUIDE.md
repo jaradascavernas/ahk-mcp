@@ -205,10 +205,22 @@ const enhancedRequest = await server.createAutoHotkeyContextSamplingRequest(
 
 ## 📋 MCP Resources Available
 
-### **Context Resources**
+### **Documentation Resources**
 - `ahk://context/auto` - Smart context based on detected keywords
 - `ahk://docs/functions` - Complete functions reference
 - `ahk://docs/variables` - Complete variables reference
+- `ahk://docs/classes` - Complete classes reference
+- `ahk://docs/methods` - Complete methods reference
+
+### **Script Templates**
+- `ahk://templates/file-system-watcher` - File monitoring template
+- `ahk://templates/clipboard-manager` - Clipboard management template
+- `ahk://templates/cpu-monitor` - System monitoring template
+- `ahk://templates/hotkey-toggle` - Hotkey management template
+
+### **Live System Data**
+- `ahk://system/clipboard` - Real-time clipboard information
+- `ahk://system/info` - System and environment information
 
 ### **Accessing Resources**
 ```bash
@@ -217,6 +229,9 @@ mcp_client list_resources
 
 # Read auto-context resource
 mcp_client read_resource "ahk://context/auto"
+
+# Get script template
+mcp_client read_resource "ahk://templates/clipboard-manager"
 ```
 
 ## 🔒 Security & Best Practices

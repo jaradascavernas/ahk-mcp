@@ -164,6 +164,54 @@ export class AutoHotkeyMcpServer {
                         name: 'AutoHotkey Variables Reference',
                         description: 'Complete reference of AutoHotkey v2 built-in variables',
                         mimeType: 'application/json'
+                    },
+                    {
+                        uri: 'ahk://docs/classes',
+                        name: 'AutoHotkey Classes Reference',
+                        description: 'Complete reference of AutoHotkey v2 built-in classes',
+                        mimeType: 'application/json'
+                    },
+                    {
+                        uri: 'ahk://docs/methods',
+                        name: 'AutoHotkey Methods Reference',
+                        description: 'Complete reference of AutoHotkey v2 built-in methods',
+                        mimeType: 'application/json'
+                    },
+                    {
+                        uri: 'ahk://templates/file-system-watcher',
+                        name: 'File System Watcher Template',
+                        description: 'AutoHotkey v2 script template for monitoring file system changes',
+                        mimeType: 'text/plain'
+                    },
+                    {
+                        uri: 'ahk://templates/clipboard-manager',
+                        name: 'Clipboard Manager Template',
+                        description: 'AutoHotkey v2 script template for clipboard management',
+                        mimeType: 'text/plain'
+                    },
+                    {
+                        uri: 'ahk://templates/cpu-monitor',
+                        name: 'CPU Monitor Template',
+                        description: 'AutoHotkey v2 script template for system monitoring',
+                        mimeType: 'text/plain'
+                    },
+                    {
+                        uri: 'ahk://templates/hotkey-toggle',
+                        name: 'Hotkey Toggle Template',
+                        description: 'AutoHotkey v2 script template for hotkey management',
+                        mimeType: 'text/plain'
+                    },
+                    {
+                        uri: 'ahk://system/clipboard',
+                        name: 'Live Clipboard Content',
+                        description: 'Real-time clipboard content (read-only)',
+                        mimeType: 'text/plain'
+                    },
+                    {
+                        uri: 'ahk://system/info',
+                        name: 'System Information',
+                        description: 'Current system information and AutoHotkey environment',
+                        mimeType: 'application/json'
                     }
                 ]
             };
@@ -205,6 +253,364 @@ export class AutoHotkeyMcpServer {
                             uri,
                             mimeType: 'application/json',
                             text: JSON.stringify(ahkIndex?.variables || [], null, 2)
+                        }
+                    ]
+                };
+            }
+            if (uri === 'ahk://docs/classes') {
+                const ahkIndex = getAhkIndex();
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: 'application/json',
+                            text: JSON.stringify(ahkIndex?.classes || [], null, 2)
+                        }
+                    ]
+                };
+            }
+            if (uri === 'ahk://docs/methods') {
+                const ahkIndex = getAhkIndex();
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: 'application/json',
+                            text: JSON.stringify(ahkIndex?.methods || [], null, 2)
+                        }
+                    ]
+                };
+            }
+            // Script templates
+            if (uri === 'ahk://templates/file-system-watcher') {
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: 'text/plain',
+                            text: `; AutoHotkey v2 File System Watcher Template
+; Monitors a directory for file changes and triggers callbacks
+
+class FileSystemWatcher {
+    __New(directory, callback) {
+        this.directory := directory
+        this.callback := callback
+        this.timer := ObjBindMethod(this, "CheckChanges")
+        this.lastModified := Map()
+        this.Initialize()
+    }
+    
+    Initialize() {
+        ; Store initial state
+        Loop Files, this.directory "\\*.*", "R" {
+            this.lastModified[A_LoopFileFullPath] := A_LoopFileTimeModified
+        }
+        ; Start monitoring
+        SetTimer(this.timer, 1000)
+    }
+    
+    CheckChanges() {
+        currentFiles := Map()
+        
+        ; Check all files in directory
+        Loop Files, this.directory "\\*.*", "R" {
+            currentFiles[A_LoopFileFullPath] := A_LoopFileTimeModified
+            
+            ; Check if file is new or modified
+            if (!this.lastModified.Has(A_LoopFileFullPath)) {
+                this.callback.Call("created", A_LoopFileFullPath)
+            } else if (this.lastModified[A_LoopFileFullPath] != A_LoopFileTimeModified) {
+                this.callback.Call("modified", A_LoopFileFullPath)
+            }
+        }
+        
+        ; Check for deleted files
+        for file, _ in this.lastModified {
+            if (!currentFiles.Has(file)) {
+                this.callback.Call("deleted", file)
+            }
+        }
+        
+        this.lastModified := currentFiles
+    }
+    
+    Stop() {
+        SetTimer(this.timer, 0)
+    }
+}
+
+; Example usage:
+; watcher := FileSystemWatcher("C:\\MyFolder", (action, file) => {
+;     ToolTip(action ": " file)
+;     SetTimer(() => ToolTip(), -2000)
+; })
+`
+                        }
+                    ]
+                };
+            }
+            if (uri === 'ahk://templates/clipboard-manager') {
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: 'text/plain',
+                            text: `; AutoHotkey v2 Clipboard Manager Template
+; Opens GUI with clipboard content and text transformation options
+
+class ClipboardManager {
+    __New() {
+        this.CreateGUI()
+        this.LoadClipboard()
+    }
+    
+    CreateGUI() {
+        this.gui := Gui("+Resize", "Clipboard Manager")
+        this.gui.SetFont("s10", "Consolas")
+        
+        ; Main edit control
+        this.editControl := this.gui.Add("Edit", "x10 y10 w400 h300 VScroll")
+        
+        ; Buttons
+        this.gui.Add("Button", "x10 y320 w80 h30 gUpperCase", "UPPER").OnEvent("Click", (*) => this.UpperCase())
+        this.gui.Add("Button", "x100 y320 w80 h30 gLowerCase", "lower").OnEvent("Click", (*) => this.LowerCase())
+        this.gui.Add("Button", "x190 y320 w80 h30 gTitleCase", "Title Case").OnEvent("Click", (*) => this.TitleCase())
+        this.gui.Add("Button", "x280 y320 w80 h30 gSaveClip", "Save to Clipboard").OnEvent("Click", (*) => this.SaveToClipboard())
+        this.gui.Add("Button", "x370 y320 w50 h30 gReload", "Reload").OnEvent("Click", (*) => this.LoadClipboard())
+        
+        ; Status bar
+        this.statusBar := this.gui.Add("StatusBar")
+        this.statusBar.SetText("Ready")
+        
+        this.gui.OnEvent("Close", (*) => ExitApp())
+        this.gui.Show()
+    }
+    
+    LoadClipboard() {
+        this.editControl.Text := A_Clipboard
+        this.statusBar.SetText("Clipboard loaded - " StrLen(A_Clipboard) " characters")
+    }
+    
+    UpperCase() {
+        this.editControl.Text := StrUpper(this.editControl.Text)
+        this.statusBar.SetText("Converted to UPPERCASE")
+    }
+    
+    LowerCase() {
+        this.editControl.Text := StrLower(this.editControl.Text)
+        this.statusBar.SetText("Converted to lowercase")
+    }
+    
+    TitleCase() {
+        this.editControl.Text := StrTitle(this.editControl.Text)
+        this.statusBar.SetText("Converted to Title Case")
+    }
+    
+    SaveToClipboard() {
+        A_Clipboard := this.editControl.Text
+        this.statusBar.SetText("Saved to clipboard - " StrLen(A_Clipboard) " characters")
+    }
+}
+
+; Create and show clipboard manager
+clipManager := ClipboardManager()
+`
+                        }
+                    ]
+                };
+            }
+            if (uri === 'ahk://templates/cpu-monitor') {
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: 'text/plain',
+                            text: `; AutoHotkey v2 CPU Monitor Template
+; Displays current CPU usage as an updating tooltip
+
+class CPUMonitor {
+    __New() {
+        this.Initialize()
+    }
+    
+    Initialize() {
+        ; Start monitoring timer
+        this.timer := ObjBindMethod(this, "UpdateCPU")
+        SetTimer(this.timer, 1000)
+        
+        ; Initial update
+        this.UpdateCPU()
+    }
+    
+    UpdateCPU() {
+        try {
+            ; Get CPU usage using WMI
+            cpuUsage := this.GetCPUUsage()
+            
+            ; Display as tooltip
+            ToolTip("CPU Usage: " cpuUsage "%\\nPress Ctrl+Alt+Q to quit", 10, 10)
+        } catch Error as e {
+            ToolTip("Error reading CPU: " e.Message, 10, 10)
+        }
+    }
+    
+    GetCPUUsage() {
+        ; Use WMI to get CPU usage
+        for objItem in ComObjGet("winmgmts:").ExecQuery("SELECT * FROM Win32_Processor") {
+            return Round(objItem.LoadPercentage, 1)
+        }
+        return 0
+    }
+    
+    Stop() {
+        SetTimer(this.timer, 0)
+        ToolTip()
+    }
+}
+
+; Hotkey to quit
+^!q::ExitApp()
+
+; Start CPU monitor
+cpuMonitor := CPUMonitor()
+`
+                        }
+                    ]
+                };
+            }
+            if (uri === 'ahk://templates/hotkey-toggle') {
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: 'text/plain',
+                            text: `; AutoHotkey v2 Hotkey Toggle Template
+; Function to toggle any hotkey on/off with visual feedback
+
+class HotkeyManager {
+    __New() {
+        this.hotkeyStates := Map()
+    }
+    
+    ; Toggle a hotkey on/off
+    ToggleHotkey(hotkey, callback, description := "") {
+        if (this.hotkeyStates.Has(hotkey)) {
+            ; Hotkey exists, toggle it
+            if (this.hotkeyStates[hotkey].enabled) {
+                this.DisableHotkey(hotkey)
+            } else {
+                this.EnableHotkey(hotkey)
+            }
+        } else {
+            ; New hotkey, register it
+            this.RegisterHotkey(hotkey, callback, description)
+        }
+    }
+    
+    RegisterHotkey(hotkey, callback, description := "") {
+        try {
+            Hotkey(hotkey, callback)
+            this.hotkeyStates[hotkey] := {
+                enabled: true,
+                callback: callback,
+                description: description
+            }
+            this.ShowStatus(hotkey, "ENABLED", description)
+        } catch Error as e {
+            this.ShowStatus(hotkey, "ERROR: " e.Message)
+        }
+    }
+    
+    EnableHotkey(hotkey) {
+        if (this.hotkeyStates.Has(hotkey)) {
+            try {
+                Hotkey(hotkey, "On")
+                this.hotkeyStates[hotkey].enabled := true
+                this.ShowStatus(hotkey, "ENABLED", this.hotkeyStates[hotkey].description)
+            } catch Error as e {
+                this.ShowStatus(hotkey, "ERROR: " e.Message)
+            }
+        }
+    }
+    
+    DisableHotkey(hotkey) {
+        if (this.hotkeyStates.Has(hotkey)) {
+            try {
+                Hotkey(hotkey, "Off")
+                this.hotkeyStates[hotkey].enabled := false
+                this.ShowStatus(hotkey, "DISABLED", this.hotkeyStates[hotkey].description)
+            } catch Error as e {
+                this.ShowStatus(hotkey, "ERROR: " e.Message)
+            }
+        }
+    }
+    
+    ShowStatus(hotkey, status, description := "") {
+        message := "Hotkey: " hotkey "\\nStatus: " status
+        if (description) {
+            message .= "\\nDescription: " description
+        }
+        ToolTip(message)
+        SetTimer(() => ToolTip(), -2000)
+    }
+    
+    ListHotkeys() {
+        message := "Registered Hotkeys:\\n"
+        for hotkey, state in this.hotkeyStates {
+            status := state.enabled ? "ON" : "OFF"
+            desc := state.description ? " - " state.description : ""
+            message .= hotkey " [" status "]" desc "\\n"
+        }
+        MsgBox(message, "Hotkey Manager")
+    }
+}
+
+; Create hotkey manager
+hkManager := HotkeyManager()
+
+; Example usage:
+; Toggle F1 key
+F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey")
+
+; List all hotkeys
+^F12::hkManager.ListHotkeys()
+`
+                        }
+                    ]
+                };
+            }
+            if (uri === 'ahk://system/clipboard') {
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: 'text/plain',
+                            text: "(Live clipboard access not available in MCP server context)\nUse AutoHotkey scripts with A_Clipboard variable to access clipboard content."
+                        }
+                    ]
+                };
+            }
+            if (uri === 'ahk://system/info') {
+                const systemInfo = {
+                    autohotkeyVersion: "v2.0+",
+                    operatingSystem: "Windows",
+                    computerName: "Unknown",
+                    userName: "Unknown",
+                    timestamp: new Date().toISOString(),
+                    processId: process.pid,
+                    workingDirectory: process.cwd(),
+                    nodeVersion: process.version,
+                    platform: process.platform,
+                    arch: process.arch,
+                    memoryUsage: process.memoryUsage(),
+                    uptime: process.uptime()
+                };
+                return {
+                    contents: [
+                        {
+                            uri,
+                            mimeType: 'application/json',
+                            text: JSON.stringify(systemInfo, null, 2)
                         }
                     ]
                 };
