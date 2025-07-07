@@ -1,42 +1,100 @@
-# AutoHotkey v2 MCP Server
+<div align="center">
+  <h1>AutoHotkey v2 MCP Server</h1>
+  
+  <p>
+    <strong>Model Context Protocol (MCP) server for AutoHotkey v2</strong>
+  </p>
+  <p>
+    <strong>Language Server Protocol-like capabilities including automatic context injection, prompt management, and coding standards validation.</strong>
+  </p>
+  
+  <p>
+    <a href="#features"><img src="https://img.shields.io/badge/Features-blue?style=for-the-badge" alt="Features"></a>
+    <a href="#installation"><img src="https://img.shields.io/badge/Install-green?style=for-the-badge" alt="Installation"></a>
+    <a href="#usage"><img src="https://img.shields.io/badge/Usage-purple?style=for-the-badge" alt="Usage"></a>
+    <a href="#development"><img src="https://img.shields.io/badge/Develop-orange?style=for-the-badge" alt="Development"></a>
+  </p>
+</div>
 
-A comprehensive **Model Context Protocol (MCP) server** that provides **Language Server Protocol-like capabilities** for AutoHotkey v2, including intelligent code completion, diagnostics, and coding standards validation.
+---
 
-## 🚀 Features
+## Overview
+
+**AutoHotkey v2 MCP Server** is designed to improve LLMs ability to produce AutoHotkey v2 code. The main features are quality of life features such as prompts to recenter the LLM on AHK v2 coding rules as well as providing meta-prompts that create a strong structure for the LLM to follow. The more advanced features such a context management are experimental and need a lot of work. However, it does currently pass in context for the thinking process based on what the user is asking for. 
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Example](#Example)
+- [Features](#features)
+  - [LSP-like Capabilities](#lsp-like-capabilities)
+  - [AutoHotkey v2 Specific Features](#autohotkey-v2-specific-features)
+- [Installation](#installation)
+  - [Prerequisites](#prerequisites)
+  - [Setup](#setup)
+  - [Claude Desktop Configuration](#claude-desktop-configuration)
+- [MCP Tools](#mcp-tools)
+  - [Core Analysis Tools](#core-analysis-tools)
+- [Built-in AutoHotkey Prompts](#built-in-autohotkey-prompts)
+- [Documentation Data](#documentation-data)
+- [License](#license)
+## Example
+
+An overly simplistic example: 
+
+1. User asks for a clipboard manager tool:
+2. LLM creates a plan which includes steps like this: 
+
+```
+The user wants me to create a clipboard manager script in AutoHotkey v2. Let me break down the requirements:
+Core Functionality:
+Monitor clipboard changes
+Display collected entries in a GUI
+Toggle collection with F6 hotkey
+Save content back to clipboard when closing
+```
+3. The MCP grabs these words from keywords: Clipboard, GUI, Toggle, and Hotkey
+4. The MCP sends back more detailed context. For clipboard this would be something like: 
+
+```
+The users clipboard can be accessed by the A_Clipboard built-in variable. If the users request involves determining whether or not a clipboard value has changed, use the OnClipboardChanged function object. Clipboard all is used if the user needs to save the clipboard temporarily. When the operation is completed, the script restores the original clipboard contents. 
+```
+5. The LLM then returns code with much better accuracy. 
+
+
+## Features
 
 ### LSP-like Capabilities
 - **Code Completion**: Intelligent suggestions for functions, variables, classes, methods, and keywords
 - **Diagnostics**: Syntax error detection and AutoHotkey v2 coding standards validation
-- **Go-to-Definition**: Navigate to symbol definitions (planned)
-- **Find References**: Locate symbol usage throughout code (planned)
+- **Script Analysis**: Comprehensive code analysis with contextual documentation
+- **Go-to-Definition**: Navigate to symbol definitions *(planned)*
+- **Find References**: Locate symbol usage throughout code *(planned)*
 
 ### AutoHotkey v2 Specific Features
 - **Built-in Documentation**: Comprehensive AutoHotkey v2 function and class reference
 - **Coding Standards**: Enforces Claude-defined AutoHotkey v2 best practices
 - **Hotkey Support**: Smart completion for hotkey definitions
 - **Class Analysis**: Object-oriented programming support with method and property completion
+- **Contextual Help**: Real-time documentation and examples for built-in elements
 
-### Claude Coding Standards
-Automatically validates code against AutoHotkey v2 best practices:
-- ✅ Use `Map()` for data structures instead of `{key: value}`
-- ✅ Initialize classes without `new` keyword: `MyClass()` not `new MyClass()`
-- ✅ Use `:=` for assignment, `=` for comparison
-- ✅ Escape quotes with backticks: `"Say \`"Hello\`" to user"`
-- ✅ Use semicolon comments: `; comment` not `// comment`
-- ✅ Bind methods for callbacks: `.OnEvent("Click", this.Method.Bind(this))`
-- ✅ Arrow functions for simple expressions only
 
-## 📦 Installation
+
+## Installation
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
+
+Before installing the AutoHotkey v2 MCP Server, ensure you have:
+
+- **Node.js** 18.0.0 or later
+- **npm** or **yarn** package manager
 
 ### Setup
+
 1. **Clone and install dependencies:**
    ```bash
-   git clone [repository-url]
-   cd ahk-server-v2
+   git clone https://github.com/TrueCrimeAudit/ahk-mcp.git
+   cd ahk-mcp
    npm install
    ```
 
@@ -50,22 +108,38 @@ Automatically validates code against AutoHotkey v2 best practices:
    npm start
    ```
 
-   For development with auto-reload:
+   **For development with auto-reload:**
    ```bash
    npm run dev
    ```
 
-## 🛠️ MCP Tools
+### Claude Desktop Configuration
+
+Add the server to your Claude Desktop configuration:
+
+```json
+{
+  "mcpServers": {
+    "ahk-mcp": {
+      "command": "node",
+      "args": ["path/to/ahk-mcp/dist/index.js"],
+      "env": {}
+    }
+  }
+}
+```
+
+## MCP Tools
 
 ### Core Analysis Tools
 
 #### `ahk_complete`
-Provides intelligent code completion suggestions.
+Provides intelligent code completion suggestions based on code position and context.
 
 ```typescript
 {
   code: string,           // AutoHotkey v2 code
-  position: {             // Cursor position
+  position: {             // Code position
     line: number,         // Zero-based line number
     character: number     // Zero-based character position
   },
@@ -74,7 +148,7 @@ Provides intelligent code completion suggestions.
 ```
 
 #### `ahk_diagnostics`
-Validates code syntax and coding standards.
+Validates code syntax and enforces coding standards with detailed error reporting.
 
 ```typescript
 {
@@ -85,7 +159,7 @@ Validates code syntax and coding standards.
 ```
 
 #### `ahk_analyze`
-Comprehensive script analysis with contextual documentation.
+Comprehensive script analysis with contextual documentation and usage insights.
 
 ```typescript
 {
@@ -96,127 +170,20 @@ Comprehensive script analysis with contextual documentation.
 }
 ```
 
-### Documentation Tools
+## Built-in AutoHotkey Prompts
 
-#### `analyze_code`
-Comprehensive code analysis with suggestions.
+The server includes 7 ready-to-use AutoHotkey v2 prompts accessible through Claude:
 
-```typescript
-{
-  code: string,    // AutoHotkey v2 code
-  fix?: boolean    // Attempt auto-fixes (default: false)
-}
-```
+1. **File System Watcher** - Monitor directory changes with callbacks
+2. **CPU Usage Monitor** - Display real-time CPU usage in tooltips
+3. **Clipboard Editor** - GUI-based clipboard text manipulation
+4. **Hotkey Toggle Function** - Dynamic hotkey management with feedback
+5. **Link Manager** - URL validation and browser integration
+6. **Snippet Manager** - Text snippet storage and insertion system
 
-#### `find_variables`
-Discover relevant AutoHotkey built-in variables.
+Access these prompts through Claude's interface by typing `/` and selecting from the available AutoHotkey prompts.
 
-```typescript
-{
-  prompt: string   // Natural language description
-}
-```
-
-#### `get_function_info`
-Retrieve function documentation.
-
-```typescript
-{
-  name?: string,    // Exact function name
-  search?: string   // Keyword search
-}
-```
-
-#### `get_class_info`
-Get class and method information.
-
-```typescript
-{
-  name?: string,     // Class name
-  method?: string,   // Specific method
-  search?: string    // Keyword search
-}
-```
-
-## 📋 Usage Examples
-
-### Code Completion Example
-```typescript
-// Request completions for "Msg" at cursor position
-{
-  "code": "Msg",
-  "position": { "line": 0, "character": 3 }
-}
-
-// Returns: MsgBox function with parameters and documentation
-```
-
-### Diagnostics Example
-```typescript
-// Analyze code with standards validation
-{
-  "code": "config = {width: 800}\nnew MyClass()",
-  "enableClaudeStandards": true
-}
-
-// Returns warnings about:
-// - Using "=" instead of ":="
-// - Using object literal instead of Map()
-// - Using "new" keyword
-```
-
-### Script Analysis Example
-```typescript
-// Comprehensive script analysis
-{
-  "code": "myVar := A_WorkingDir\nMsgBox('Hello')\n^j::Send('Text')",
-  "includeDocumentation": true
-}
-
-// Returns detailed analysis:
-// - Built-in variables used (A_WorkingDir with documentation)
-// - Built-in functions used (MsgBox with parameters)
-// - Hotkeys defined (Ctrl+J)
-// - Suggestions for improvements
-// - Code complexity metrics
-```
-
-
-
-## 🏗️ Project Structure
-
-```
-ahk-server-v2/
-├── src/
-│   ├── core/                    # Core parsing and analysis
-│   │   ├── loader.ts           # Data loading and indexing
-│   │   ├── parser.ts           # AutoHotkey v2 parser
-│   │   └── claude-standards.ts # Coding standards engine
-│   ├── lsp/                    # LSP-like features
-│   │   ├── completion.ts       # Code completion
-│   │   └── diagnostics.ts     # Error detection
-│   ├── tools/                  # MCP tool implementations
-│   │   ├── ahk-complete.ts    # Completion tool
-│   │   ├── ahk-diagnostics.ts # Diagnostics tool
-│   │   ├── ahk-analyze.ts     # Script analysis tool
-│   │   └── ahk-prompts.ts     # Built-in prompts
-│   ├── types/                  # TypeScript definitions
-│   │   ├── lsp-types.ts       # LSP-like types
-│   │   ├── ahk-ast.ts         # AutoHotkey AST types
-│   │   └── tool-types.ts      # Tool argument types
-│   ├── server.ts              # Main MCP server
-│   ├── index.ts              # Entry point
-│   └── logger.ts             # Logging system
-├── NewServer/data/            # AutoHotkey documentation
-│   ├── ahk_index.json        # Function/class index
-│   ├── ahk_documentation_full.json
-│   └── ahk_documentation_index.json
-├── scripts/
-│   └── copy-data.js          # Build script
-└── docs/                     # Documentation
-```
-
-## 📊 Documentation Data
+## Documentation Data
 
 The server includes comprehensive AutoHotkey v2 documentation:
 
@@ -226,56 +193,17 @@ The server includes comprehensive AutoHotkey v2 documentation:
 - **Methods**: Class methods with detailed parameter information
 - **Directives**: #Include, #Requires, and other preprocessor directives
 
-## 🔧 Development
-
-### Building
-```bash
-npm run build        # Production build
-npm run watch        # Development watch mode
-npm run clean        # Clean dist directory
-```
-
-### Linting
-```bash
-npm run lint         # ESLint validation
-```
-
-### Testing
-```bash
-npm test            # Run tests (when implemented)
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-### Coding Standards
-- Follow the AutoHotkey v2 standards enforced by the server
-- Use TypeScript strict mode
-- Add comprehensive JSDoc comments
-- Write tests for new features
-
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- AutoHotkey community for comprehensive documentation
-- Model Context Protocol specification
-- TypeScript LSP implementations for architectural inspiration
-
-## 📞 Support
-
-For issues and questions:
-- Create an issue on GitHub
-- Check the documentation in `/docs`
-- Review the implementation guides in `/NewServer/docs`
-
 ---
 
-**Built with ❤️ for the AutoHotkey community** 
+<div align="center">
+  <p>
+    <strong>Built with ❤️ for the community</strong>
+  </p>
+  <p>
+    <a href="https://www.autohotkey.com/docs/v2/">Official AHK Documents</a>
+  </p>
+</div> 
