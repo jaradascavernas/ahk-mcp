@@ -19,6 +19,7 @@ import { AhkPromptsTool, ahkPromptsToolDefinition, PROMPTS } from './tools/ahk-p
 import { AhkAnalyzeTool, ahkAnalyzeToolDefinition } from './tools/ahk-analyze.js';
 import { AhkContextInjectorTool, ahkContextInjectorToolDefinition } from './tools/ahk-context-injector.js';
 import { AhkAutoContextProvider } from './tools/ahk-auto-context.js';
+import { AhkSamplingEnhancer, ahkSamplingEnhancerToolDefinition } from './tools/ahk-sampling-enhancer.js';
 
 export class AutoHotkeyMcpServer {
   private server: Server;
@@ -28,6 +29,7 @@ export class AutoHotkeyMcpServer {
   private ahkPromptsToolInstance: AhkPromptsTool;
   private ahkAnalyzeToolInstance: AhkAnalyzeTool;
   private ahkContextInjectorToolInstance: AhkContextInjectorTool;
+  private ahkSamplingEnhancerToolInstance: AhkSamplingEnhancer;
 
   constructor() {
     this.server = new Server(
@@ -42,6 +44,7 @@ export class AutoHotkeyMcpServer {
           tools: {},
           prompts: {},
           resources: {},
+          sampling: {},
           fileExtensions: ['.ahk'],
           languages: ['autohotkey', 'ahk'],
         },
@@ -55,6 +58,7 @@ export class AutoHotkeyMcpServer {
     this.ahkPromptsToolInstance = new AhkPromptsTool();
     this.ahkAnalyzeToolInstance = new AhkAnalyzeTool();
     this.ahkContextInjectorToolInstance = new AhkContextInjectorTool();
+    this.ahkSamplingEnhancerToolInstance = new AhkSamplingEnhancer();
 
     this.setupToolHandlers();
     this.setupPromptHandlers();
@@ -77,6 +81,7 @@ export class AutoHotkeyMcpServer {
           ahkPromptsToolDefinition,
           ahkAnalyzeToolDefinition,
           ahkContextInjectorToolDefinition,
+          ahkSamplingEnhancerToolDefinition,
         ],
       };
     });
@@ -106,6 +111,9 @@ export class AutoHotkeyMcpServer {
 
           case 'ahk_context_injector':
             return await this.ahkContextInjectorToolInstance.execute(args as any);
+
+          case 'ahk_sampling_enhancer':
+            return await this.ahkSamplingEnhancerToolInstance.execute(args as any);
 
           default:
             logger.error(`Unknown tool: ${name}`);
@@ -254,6 +262,91 @@ export class AutoHotkeyMcpServer {
 
       throw new Error(`Resource not found: ${uri}`);
     });
+  }
+
+  /**
+   * Automatically create sampling requests for AutoHotkey-related prompts
+   * This follows MCP sampling standards for automatic context enhancement
+   */
+  async createAutoHotkeyContextSamplingRequest(
+    originalPrompt: string,
+    options: {
+      contextLevel?: 'minimal' | 'standard' | 'comprehensive';
+      modelPreferences?: {
+        intelligencePriority?: number;
+        costPriority?: number;
+        speedPriority?: number;
+      };
+      maxTokens?: number;
+    } = {}
+  ): Promise<any> {
+    const samplingEnhancer = this.ahkSamplingEnhancerToolInstance;
+    
+    // Use the sampling enhancer to create a properly formatted request
+    const defaultModelPreferences = {
+      intelligencePriority: 0.8,
+      costPriority: 0.3,
+      speedPriority: 0.5
+    };
+    
+    const enhancementResult = await samplingEnhancer.execute({
+      originalPrompt,
+      includeExamples: true,
+      contextLevel: options.contextLevel || 'standard',
+      modelPreferences: {
+        intelligencePriority: options.modelPreferences?.intelligencePriority ?? defaultModelPreferences.intelligencePriority,
+        costPriority: options.modelPreferences?.costPriority ?? defaultModelPreferences.costPriority,
+        speedPriority: options.modelPreferences?.speedPriority ?? defaultModelPreferences.speedPriority
+      },
+      maxTokens: options.maxTokens || 1000
+    });
+
+    return enhancementResult;
+  }
+
+  /**
+   * Process incoming messages and automatically enhance AutoHotkey-related content
+   * This method demonstrates how to implement automatic context injection
+   */
+  async processMessageWithAutoContext(message: string): Promise<{
+    enhanced: boolean;
+    samplingRequest?: any;
+    originalMessage: string;
+    enhancedMessage?: string;
+  }> {
+    // Pattern matching for AutoHotkey content
+    const ahkPatterns = [
+      /\b(autohotkey|ahk)\b/gi,
+      /\b(hotkey|gui|clipboard|send|msgbox)\b/gi,
+      /\ba_\w+\b/gi,
+      /\b(script|automation|macro)\b/gi
+    ];
+
+    const isAutoHotkeyRelated = ahkPatterns.some(pattern => pattern.test(message));
+
+    if (!isAutoHotkeyRelated) {
+      return {
+        enhanced: false,
+        originalMessage: message
+      };
+    }
+
+    // Create enhanced sampling request
+    const samplingRequest = await this.createAutoHotkeyContextSamplingRequest(message, {
+      contextLevel: 'standard',
+      modelPreferences: {
+        intelligencePriority: 0.8,
+        costPriority: 0.3,
+        speedPriority: 0.5
+      }
+    });
+
+    return {
+      enhanced: true,
+      samplingRequest,
+      originalMessage: message,
+      enhancedMessage: `Enhanced with AutoHotkey context: ${message}`
+    };
   }
 
   /**
