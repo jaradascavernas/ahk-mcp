@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import os from 'os';
 import logger from '../logger.js';
+// import { loadConfig } from '../core/config.js';
 import { activeFile, autoDetect } from '../core/active-file.js';
 const execAsync = promisify(exec);
 export const AhkRunArgsSchema = z.object({
@@ -66,7 +67,7 @@ export class AhkRunTool {
               Write-Output $windows
             }
           `;
-                    const { stdout } = await execAsync(`powershell -NoProfile -Command "${psScript.replace(/"/g, '\"').replace(/\n/g, ' ')}"`);
+                    const { stdout } = await execAsync(`powershell -NoProfile -Command "${psScript.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`);
                     const windowTitle = stdout.trim();
                     if (windowTitle) {
                         clearInterval(checkInterval);
@@ -260,7 +261,7 @@ export class AhkRunTool {
             autoDetect(pathToFile);
         }
         // Get the file from either the provided path or the active file
-        let file = pathToFile ? path.resolve(pathToFile) : activeFile.getActiveFile();
+        const file = pathToFile ? path.resolve(pathToFile) : activeFile.getActiveFile();
         if (!file) {
             throw new Error('No filePath provided and no active file set.');
         }

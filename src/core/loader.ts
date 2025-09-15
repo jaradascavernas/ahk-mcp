@@ -7,7 +7,7 @@ import fs from 'node:fs';
 // Global data storage - loaded lazily
 let ahkIndex: AhkIndex | null = null;
 let ahkDocumentationFull: any = null;
-// let ahkDocumentationIndex: any = null;
+let ahkDocumentationIndex: any = null;
 
 function resolveDataPath(rel: string): string {
   // Resolve relative to this module at runtime (works in dist and src builds)
@@ -19,7 +19,7 @@ async function dynamicJsonImport<T = any>(relPathFromData: string): Promise<T> {
   const relFromCore = `../../data/${relPathFromData}`;
   // Prefer import attributes when available (Node >= 20)
   try {
-    // @ts-expect-error - import attributes are runtime-checked
+    // @ts-ignore - import attributes are runtime-checked
     const mod = await import(relFromCore, { with: { type: 'json' } } as any);
     // Some bundlers put value on .default
     return (mod as any).default ?? (mod as any);

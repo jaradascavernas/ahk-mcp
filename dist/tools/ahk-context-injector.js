@@ -125,7 +125,7 @@ export class AhkContextInjectorTool {
                 return this.moduleInstructionsCache.get(moduleFile);
             }
             // Determine project root - look for package.json to find root
-            let currentDir = process.cwd();
+            const currentDir = process.cwd();
             let projectRoot = currentDir;
             // Try to find project root by looking for package.json
             while (projectRoot !== path.dirname(projectRoot)) {
@@ -332,7 +332,7 @@ export class AhkContextInjectorTool {
         const keywords = [];
         const normalizedText = text.toLowerCase();
         // Check for direct keyword matches
-        for (const [concept, elements] of this.keywordMap) {
+        for (const [concept, _elements] of this.keywordMap) {
             if (normalizedText.includes(concept)) {
                 keywords.push(concept);
             }
@@ -357,10 +357,10 @@ export class AhkContextInjectorTool {
     detectFilePath(text) {
         // Look for common file path patterns
         const filePathPatterns = [
-            /[A-Za-z]:[\\\/][^<>:"|?*\r\n]+\.ahk/g, // Windows absolute paths
-            /(?:~|\.\.?)[\\\/][^<>:"|?*\r\n]+\.ahk/g, // Relative paths
+            /[A-Za-z]:[/\\][^<>:"|?*\r\n]+\.ahk/g, // Windows absolute paths
+            /(?:~|\.\.?)[/\\][^<>:"|?*\r\n]+\.ahk/g, // Relative paths
             /[^<>:"|?*\r\n]+\.ahk/g, // Simple .ahk filenames
-            /["\'][^"']+\.ahk["\']/, // Quoted paths
+            /["'][^"']+\.ahk["']/, // Quoted paths
         ];
         return filePathPatterns.some(pattern => pattern.test(text));
     }

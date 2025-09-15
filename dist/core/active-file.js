@@ -78,11 +78,11 @@ class ActiveFileManager {
             // Quoted paths
             /["']([^"']*\.ahk)["']/gi,
             // Windows paths with drive
-            /([A-Z]:[\\\/][^\\\/\s"']*\.ahk)/gi,
+            /([A-Z]:[/\\][^/\\\s"']*\.ahk)/gi,
             // Relative paths
-            /((?:\.\/|\.\.\/|[^\\\/\s"']+\/)*[^\\\/\s"']+\.ahk)/gi,
+            /((?:\.\/|\.\.\/|[^/\\\s"']+\/)*[^/\\\s"']+\.ahk)/gi,
             // Just filename.ahk
-            /\b([\w\-]+\.ahk)\b/gi
+            /\b([\w-]+\.ahk)\b/gi
         ];
         for (const pattern of patterns) {
             const matches = text.matchAll(pattern);

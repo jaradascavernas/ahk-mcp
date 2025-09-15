@@ -55,7 +55,7 @@ export var TokenType;
     TokenType["LBRACKET"] = "[";
     TokenType["RBRACKET"] = "]";
     TokenType["COMMA"] = ",";
-    TokenType["DOT"] = ".";
+    TokenType["DOT"] = "DOT";
     TokenType["COLON"] = ":";
     TokenType["SEMICOLON"] = ";";
     TokenType["QUESTION"] = "?";

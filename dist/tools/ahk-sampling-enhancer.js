@@ -70,6 +70,17 @@ export const ahkSamplingEnhancerToolDefinition = {
         required: ['originalPrompt']
     }
 };
+// interface SamplingResponse {
+//   model: string;
+//   stopReason?: 'endTurn' | 'stopSequence' | 'maxTokens' | string;
+//   role: 'user' | 'assistant';
+//   content: {
+//     type: 'text' | 'image';
+//     text?: string;
+//     data?: string;
+//     mimeType?: string;
+//   };
+// }
 export class AhkSamplingEnhancer {
     constructor() {
         this.keywordPatterns = [
@@ -154,7 +165,7 @@ export class AhkSamplingEnhancer {
         }
         return [...new Set(keywords)];
     }
-    async generateEnhancedContext(prompt, contextLevel, includeExamples) {
+    async generateEnhancedContext(prompt, contextLevel, _includeExamples) {
         const ahkIndex = getAhkIndex();
         if (!ahkIndex) {
             return '';

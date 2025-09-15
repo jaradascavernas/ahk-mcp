@@ -506,6 +506,7 @@ export class AhkParser {
     }
     call() {
         let expr = this.primary();
+        // eslint-disable-next-line no-constant-condition
         while (true) {
             if (this.match(TokenType.LPAREN)) {
                 expr = this.finishCall(expr);

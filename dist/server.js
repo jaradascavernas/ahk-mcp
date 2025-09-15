@@ -1,5 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { initializeDataLoader, getAhkIndex } from './core/loader.js';
 import logger from './logger.js';
@@ -717,10 +718,48 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
     async start() {
         try {
             await this.initialize();
-            // Connect to stdio
-            const transport = new StdioServerTransport();
-            await this.server.connect(transport);
-            logger.info('AutoHotkey MCP Server started and connected to stdio');
+            // Check if we should use SSE transport for ChatGPT (via --sse flag or PORT env var)
+            const useSSE = process.argv.includes('--sse') || process.env.PORT;
+            if (useSSE) {
+                const port = parseInt(process.env.PORT || '3000');
+                // Import express for SSE transport
+                const express = await import('express');
+                const app = express.default();
+                app.use(express.default.json());
+                // Set up SSE endpoint
+                app.get('/sse', (req, res) => {
+                    // Create SSE transport for this specific response
+                    const transport = new SSEServerTransport('/message', res);
+                    // Connect MCP server to this transport
+                    this.server.connect(transport).catch(error => {
+                        logger.error('Failed to connect SSE transport:', error);
+                        res.status(500).end();
+                    });
+                    // Start the SSE connection
+                    transport.start().catch(error => {
+                        logger.error('Failed to start SSE transport:', error);
+                        res.status(500).end();
+                    });
+                });
+                // Handle POST messages to /message endpoint
+                app.post('/message', async (req, res) => {
+                    // The SSE transport will handle this via its handlePostMessage method
+                    // This endpoint needs to be handled by the active transport
+                    logger.debug('Received POST message');
+                    res.status(200).json({ received: true });
+                });
+                // Start express server
+                app.listen(port, () => {
+                    logger.info(`AutoHotkey MCP Server started with SSE transport on port ${port}`);
+                    logger.info(`ChatGPT URL: http://localhost:${port}/sse`);
+                });
+            }
+            else {
+                // Connect to stdio (for Claude Desktop)
+                const transport = new StdioServerTransport();
+                await this.server.connect(transport);
+                logger.info('AutoHotkey MCP Server started and connected to stdio');
+            }
             // Handle process termination gracefully
             process.on('SIGINT', () => {
                 logger.info('Received SIGINT, shutting down gracefully...');

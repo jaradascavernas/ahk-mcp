@@ -286,7 +286,7 @@ export class AhkLinter {
         }
     }
     // Helper methods
-    collectDefinitionsAndUsages(statements, definedFunctions, definedVariables, usedFunctions, usedVariables) {
+    collectDefinitionsAndUsages(statements, definedFunctions, _definedVariables, _usedFunctions, _usedVariables) {
         for (const stmt of statements) {
             if (stmt.type === 'FunctionDeclaration') {
                 definedFunctions.add(stmt.name);

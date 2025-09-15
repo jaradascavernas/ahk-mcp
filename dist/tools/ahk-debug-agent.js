@@ -229,7 +229,7 @@ class DebugPortProxy {
             return;
         }
         if (mode === 'dap' || looksLikeDAP) {
-            let offset = 0;
+            const offset = 0;
             let working = buffer;
             const headerSep = Buffer.from('\r\n\r\n');
             while (true) {

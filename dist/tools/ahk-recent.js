@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
+// import os from 'node:os';
 import logger from '../logger.js';
 import { resolveSearchDirs } from '../core/config.js';
 export const AhkRecentArgsSchema = z.object({
@@ -40,7 +41,9 @@ function enumerateFiles(dir, patterns) {
                 const stat = fs.statSync(fullPath);
                 results.push({ fullPath, lastWriteTime: stat.mtimeMs });
             }
-            catch { }
+            catch {
+                // Silently ignore files that can't be stat'ed
+            }
         }
         return results;
     }
@@ -52,7 +55,7 @@ function enumerateFiles(dir, patterns) {
 function matchesPattern(fileName, pattern) {
     // very small glob: supports leading/trailing * and case-insensitive .ahk
     const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let rx = '^' + pattern.split('*').map(esc).join('.*') + '$';
+    const rx = '^' + pattern.split('*').map(esc).join('.*') + '$';
     const regex = new RegExp(rx, 'i');
     return regex.test(fileName);
 }
@@ -63,7 +66,7 @@ export class AhkRecentTool {
             // Resolve directories: arg -> config -> env -> cwd
             const searchDirs = resolveSearchDirs(scriptDir, extraDirs);
             // Scan only top-level of each directory for performance
-            let found = [];
+            const found = [];
             for (const d of searchDirs) {
                 found.push(...enumerateFiles(d, patterns));
             }
