@@ -18,7 +18,7 @@
 **AutoHotkey v2 MCP Server** is designed to improve LLMs ability to produce AutoHotkey v2 code. The main features are quality of life features such as prompts to recenter the LLM on AHK v2 coding rules as well as providing meta-prompts that create a strong structure for the LLM to follow. The more advanced features such a context management are experimental and need a lot of work. However, it does currently pass in context for the thinking process based on what the user is asking for.
 
 > [!IMPORTANT]
-> UPDATED 08/07/25: Added new List Editor GUI, Agents, Claude Code commands, reformatted all prompts for more modern LLM prompting guidelines
+> UPDATED 12/14/24: Fixed ESLint configuration and resolved critical code quality issues. Added advanced file management tools, alpha versioning system, and expanded the MCP server with 21 specialized AutoHotkey development tools.
 > This readme was not created using AI, so it's worth reading lol
 
 ## Recent Updates
