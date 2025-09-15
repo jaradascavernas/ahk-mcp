@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { AhkParser } from '../core/parser.js';
-import { getAhkIndex } from '../core/loader.js';
+import { AhkCompiler } from '../compiler/ahk-compiler.js';
 import logger from '../logger.js';
+import { autoDetect } from '../core/active-file.js';
 export const AhkAnalyzeArgsSchema = z.object({
     code: z.string().min(1, 'AutoHotkey code is required'),
     includeDocumentation: z.boolean().optional().default(true),
@@ -11,34 +11,137 @@ export const AhkAnalyzeArgsSchema = z.object({
 export const ahkAnalyzeToolDefinition = {
     name: 'ahk_analyze',
     description: 'Analyzes AutoHotkey v2 scripts and provides contextual information about functions, variables, classes, and other elements used in the code.',
-    inputSchema: AhkAnalyzeArgsSchema
+    inputSchema: {
+        type: 'object',
+        properties: {
+            code: {
+                type: 'string',
+                description: 'AutoHotkey code is required'
+            },
+            includeDocumentation: {
+                type: 'boolean',
+                description: 'Include documentation for built-in elements',
+                default: true
+            },
+            includeUsageExamples: {
+                type: 'boolean',
+                description: 'Include usage examples',
+                default: false
+            },
+            analyzeComplexity: {
+                type: 'boolean',
+                description: 'Analyze code complexity',
+                default: false
+            }
+        },
+        required: ['code']
+    }
 };
 export class AhkAnalyzeTool {
     async execute(args) {
         try {
-            logger.info('Analyzing AutoHotkey script for contextual information');
+            logger.info('Analyzing AutoHotkey script using new compiler system');
+            // Auto-detect any file paths in the code
+            if (args.code) {
+                autoDetect(args.code);
+            }
             const validatedArgs = AhkAnalyzeArgsSchema.parse(args);
             const { code, includeDocumentation, includeUsageExamples, analyzeComplexity } = validatedArgs;
-            // Parse the script
-            const parser = new AhkParser(code);
-            const parseResult = parser.parse();
-            // Get documentation data
-            const ahkIndex = getAhkIndex();
-            // Analyze the script
-            const analysis = await this.analyzeScript(parseResult, code, ahkIndex, {
-                includeDocumentation,
-                includeUsageExamples,
-                analyzeComplexity
-            });
+            // Use the new compiler system for comprehensive analysis
+            const compilerResults = AhkCompiler.analyze(code);
+            const statistics = AhkCompiler.getStatistics(code);
+            // Format the results
+            let report = '# AutoHotkey v2 Script Analysis\n\n';
+            // Statistics
+            report += '## Code Statistics\n';
+            report += `- **Lines of Code:** ${statistics.lines}\n`;
+            report += `- **Total Tokens:** ${statistics.tokens}\n`;
+            report += `- **Functions:** ${statistics.functions}\n`;
+            report += `- **Classes:** ${statistics.classes}\n`;
+            report += `- **Comments:** ${statistics.comments}\n`;
+            report += `- **Complexity Score:** ${statistics.complexity}\n\n`;
+            // Parsing Results
+            if (compilerResults.ast.success) {
+                report += '## ✅ Syntax Analysis\n';
+                report += 'Code parsed successfully with no syntax errors.\n\n';
+            }
+            else {
+                report += '## ❌ Syntax Errors\n';
+                compilerResults.ast.errors.forEach(error => {
+                    report += `- Line ${error.line}, Column ${error.column}: ${error.message}\n`;
+                });
+                report += '\n';
+            }
+            // Linting Results
+            if (compilerResults.diagnostics.success && compilerResults.diagnostics.data) {
+                const diagnostics = compilerResults.diagnostics.data;
+                if (diagnostics.length > 0) {
+                    report += '## 🔍 Code Quality Issues\n';
+                    report += AhkCompiler.formatDiagnostics(diagnostics);
+                    report += '\n\n';
+                }
+                else {
+                    report += '## ✅ Code Quality\n';
+                    report += 'No issues found! Your code follows AutoHotkey v2 best practices.\n\n';
+                }
+            }
+            // Enhanced Regex-based AutoHotkey v2 Syntax Checking
+            const syntaxIssues = this.checkAhkV2Syntax(code);
+            if (syntaxIssues.length > 0) {
+                report += '## ⚠️ AutoHotkey v2 Syntax Issues (Enhanced Detection)\n';
+                syntaxIssues.forEach(issue => {
+                    report += `- **Line ${issue.line}:** ${issue.message}\n`;
+                    report += `  \`\`\`autohotkey\n  ${issue.code}\n  \`\`\`\n`;
+                    if (issue.suggestion) {
+                        report += `  **Suggested fix:** \`${issue.suggestion}\`\n`;
+                    }
+                    report += '\n';
+                });
+            }
+            else {
+                report += '## ✅ AutoHotkey v2 Syntax (Enhanced Detection)\n';
+                report += 'No AutoHotkey v2 syntax issues detected by enhanced regex analysis.\n\n';
+            }
+            // Semantic Analysis
+            if (compilerResults.semanticTokens.success && compilerResults.semanticTokens.data) {
+                const tokens = compilerResults.semanticTokens.data;
+                const tokenCounts = this.countSemanticTokens(tokens);
+                report += '## 🎨 Code Structure\n';
+                Object.entries(tokenCounts).forEach(([type, count]) => {
+                    if (count > 0) {
+                        report += `- **${type}:** ${count}\n`;
+                    }
+                });
+                report += '\n';
+            }
+            // Complexity Analysis
+            if (analyzeComplexity) {
+                report += '## 📊 Complexity Analysis\n';
+                const complexityLevel = statistics.complexity <= 5 ? 'Low' :
+                    statistics.complexity <= 15 ? 'Medium' : 'High';
+                report += `- **Complexity Level:** ${complexityLevel}\n`;
+                report += `- **Maintainability:** ${complexityLevel === 'Low' ? 'Excellent' :
+                    complexityLevel === 'Medium' ? 'Good' : 'Needs Improvement'}\n\n`;
+            }
+            // Recommendations
+            report += '## 💡 Recommendations\n';
+            if (statistics.complexity > 20) {
+                report += '- Consider breaking down complex functions into smaller, more manageable pieces\n';
+            }
+            if (statistics.comments === 0 && statistics.lines > 10) {
+                report += '- Add comments to explain complex logic and improve code readability\n';
+            }
+            if (statistics.functions === 0 && statistics.lines > 20) {
+                report += '- Consider organizing code into functions for better structure and reusability\n';
+            }
+            if (!code.includes('#Requires AutoHotkey v2')) {
+                report += '- Add "#Requires AutoHotkey v2" directive at the top of your script\n';
+            }
             return {
                 content: [
                     {
                         type: 'text',
-                        text: this.formatAnalysisReport(analysis)
-                    },
-                    {
-                        type: 'json',
-                        data: analysis
+                        text: report
                     }
                 ]
             };
@@ -54,6 +157,134 @@ export class AhkAnalyzeTool {
                 ]
             };
         }
+    }
+    countSemanticTokens(tokens) {
+        const counts = {};
+        tokens.forEach(token => {
+            const type = token.tokenType || 'unknown';
+            counts[type] = (counts[type] || 0) + 1;
+        });
+        return counts;
+    }
+    /**
+     * Enhanced regex-based AutoHotkey v2 syntax checking
+     */
+    checkAhkV2Syntax(code) {
+        const issues = [];
+        const lines = code.split('\n');
+        lines.forEach((line, index) => {
+            const lineNum = index + 1;
+            const trimmedLine = line.trim();
+            // Skip comments and empty lines
+            if (trimmedLine.startsWith(';') || trimmedLine === '')
+                return;
+            // 1. Check for object literals (should use Map() constructor)
+            const objectLiteralRegex = /\{\s*[\w"']+\s*:\s*[^}]+\}/g;
+            if (objectLiteralRegex.test(line)) {
+                issues.push({
+                    line: lineNum,
+                    message: 'Object literal syntax detected - use Map() constructor in AutoHotkey v2',
+                    code: trimmedLine,
+                    suggestion: 'Map("key", "value") instead of {key: "value"}'
+                });
+            }
+            // 2. Check for "new" keyword usage
+            const newKeywordRegex = /\bnew\s+\w+/g;
+            if (newKeywordRegex.test(line)) {
+                const match = line.match(newKeywordRegex);
+                if (match) {
+                    issues.push({
+                        line: lineNum,
+                        message: 'Remove "new" keyword in AutoHotkey v2',
+                        code: trimmedLine,
+                        suggestion: match[0].replace('new ', '')
+                    });
+                }
+            }
+            // 3. Check for assignment operator (= instead of :=)
+            const assignmentRegex = /^\s*\w+\s*=\s*[^=]/;
+            if (assignmentRegex.test(line) && !line.includes('==') && !line.includes('!=') && !line.includes('<=') && !line.includes('>=')) {
+                issues.push({
+                    line: lineNum,
+                    message: 'Use ":=" for assignment, "=" is for comparison in AutoHotkey v2',
+                    code: trimmedLine,
+                    suggestion: trimmedLine.replace(/(\w+)\s*=\s*/, '$1 := ')
+                });
+            }
+            // 4. Check for double slash comments
+            const doubleSlashRegex = /\/\//;
+            if (doubleSlashRegex.test(line) && !line.includes('http://') && !line.includes('https://')) {
+                issues.push({
+                    line: lineNum,
+                    message: 'Use semicolon (;) for comments in AutoHotkey v2, not double slash (//)',
+                    code: trimmedLine,
+                    suggestion: trimmedLine.replace('//', ';')
+                });
+            }
+            // 5. Check for string concatenation with . operator
+            const dotConcatRegex = /"\s*\.\s*"/g;
+            if (dotConcatRegex.test(line)) {
+                issues.push({
+                    line: lineNum,
+                    message: 'String concatenation in AutoHotkey v2 uses space or explicit concatenation',
+                    code: trimmedLine,
+                    suggestion: 'Use "string1" "string2" or "string1" . "string2"'
+                });
+            }
+            // 6. Check for old-style function calls without parentheses
+            const oldFunctionCallRegex = /^[A-Z]\w+\s+[^(=:]/;
+            if (oldFunctionCallRegex.test(trimmedLine)) {
+                const functionName = trimmedLine.split(/\s+/)[0];
+                if (['MsgBox', 'Send', 'Click', 'Sleep', 'Run', 'WinActivate'].includes(functionName)) {
+                    issues.push({
+                        line: lineNum,
+                        message: `Function "${functionName}" requires parentheses in AutoHotkey v2`,
+                        code: trimmedLine,
+                        suggestion: `${functionName}(...)`
+                    });
+                }
+            }
+            // 7. Check for array access with % (legacy syntax)
+            const legacyArrayRegex = /%\w+%/g;
+            if (legacyArrayRegex.test(line)) {
+                issues.push({
+                    line: lineNum,
+                    message: 'Legacy variable syntax detected - use direct variable names in AutoHotkey v2',
+                    code: trimmedLine,
+                    suggestion: 'Remove % symbols around variable names'
+                });
+            }
+            // 8. Check for missing #Requires directive
+            if (lineNum === 1 && !code.includes('#Requires AutoHotkey v2')) {
+                issues.push({
+                    line: 1,
+                    message: 'Missing #Requires AutoHotkey v2 directive',
+                    code: 'Top of file',
+                    suggestion: 'Add "#Requires AutoHotkey v2" at the beginning of your script'
+                });
+            }
+            // 9. Check for old-style hotkey syntax
+            const oldHotkeyRegex = /^[^:]+::[^:].*return$/i;
+            if (oldHotkeyRegex.test(trimmedLine)) {
+                issues.push({
+                    line: lineNum,
+                    message: 'Old-style hotkey with "return" - use function syntax in AutoHotkey v2',
+                    code: trimmedLine,
+                    suggestion: 'Use "Hotkey::FunctionName" or "Hotkey::() => Action"'
+                });
+            }
+            // 10. Check for quotes that should use backticks for escaping
+            const quoteEscapeRegex = /\\"/g;
+            if (quoteEscapeRegex.test(line)) {
+                issues.push({
+                    line: lineNum,
+                    message: 'Use backticks to escape quotes in AutoHotkey v2 strings',
+                    code: trimmedLine,
+                    suggestion: 'Use `" instead of \\"'
+                });
+            }
+        });
+        return issues;
     }
     async analyzeScript(parseResult, code, ahkIndex, options) {
         const lines = code.split('\n');

@@ -1,0 +1,150 @@
+import { z } from 'zod';
+import FlexSearch from 'flexsearch';
+import { getAhkIndex, getAhkDocumentationFull } from '../core/loader.js';
+import logger from '../logger.js';
+export const AhkDocSearchArgsSchema = z.object({
+    query: z.string().min(1, 'Search query is required'),
+    category: z.enum(['auto', 'functions', 'variables', 'classes', 'methods']).optional().default('auto'),
+    limit: z.number().min(1).max(50).optional().default(10)
+});
+export const ahkDocSearchToolDefinition = {
+    name: 'ahk_doc_search',
+    description: 'Full-text search across AutoHotkey v2 docs using FlexSearch (functions, variables, classes, methods).',
+    inputSchema: {
+        type: 'object',
+        properties: {
+            query: { type: 'string', description: 'Search query' },
+            category: { type: 'string', enum: ['auto', 'functions', 'variables', 'classes', 'methods'], default: 'auto', description: 'Restrict search category' },
+            limit: { type: 'number', minimum: 1, maximum: 50, default: 10 }
+        },
+        required: ['query']
+    }
+};
+export class AhkDocSearchTool {
+    ensureIndex() {
+        if (AhkDocSearchTool.initialized)
+            return;
+        const index = getAhkIndex();
+        const full = getAhkDocumentationFull();
+        const docs = [];
+        if (index) {
+            (index.functions || []).forEach((f, i) => {
+                docs.push({ id: `fn:${i}:${f.Name}`, type: 'function', name: f.Name, description: f.Description });
+            });
+            (index.variables || []).forEach((v, i) => {
+                docs.push({ id: `var:${i}:${v.Name}`, type: 'variable', name: v.Name, description: v.Description });
+            });
+            (index.classes || []).forEach((c, i) => {
+                docs.push({ id: `cls:${i}:${c.Name}`, type: 'class', name: c.Name, description: c.Description });
+            });
+            (index.methods || []).forEach((m, i) => {
+                const fullName = m.Path ? `${m.Path}.${m.Name}` : m.Name;
+                docs.push({ id: `meth:${i}:${fullName}`, type: 'method', name: fullName, description: m.Description, path: m.Path });
+            });
+        }
+        // Optionally enrich from full docs
+        if (full?.data) {
+            (full.data.Functions || []).slice(0, 10000).forEach((f, i) => {
+                docs.push({ id: `fdfn:${i}:${f.Name}`, type: 'function', name: f.Name, description: f.Description });
+            });
+        }
+        AhkDocSearchTool.corpus = docs;
+        try {
+            // FlexSearch.Document prefers adding items individually
+            for (const d of docs) {
+                AhkDocSearchTool.index.add(d);
+            }
+            AhkDocSearchTool.initialized = true;
+            logger.info(`FlexSearch doc index initialized with ${docs.length} items`);
+        }
+        catch (err) {
+            logger.error('Failed to build FlexSearch index:', err);
+            AhkDocSearchTool.initialized = true; // Avoid retry loops
+        }
+    }
+    async execute(args) {
+        try {
+            const { query, category, limit } = AhkDocSearchArgsSchema.parse(args);
+            this.ensureIndex();
+            const filterType = (t) => {
+                if (category === 'auto')
+                    return true;
+                if (category === 'functions')
+                    return t === 'function';
+                if (category === 'variables')
+                    return t === 'variable';
+                if (category === 'classes')
+                    return t === 'class';
+                if (category === 'methods')
+                    return t === 'method';
+                return true;
+            };
+            let results = [];
+            try {
+                const sets = await AhkDocSearchTool.index.search(query, {
+                    enrich: true,
+                    limit: limit * 2,
+                    index: ['name', 'description', 'path']
+                });
+                // Aggregate unique docs across fields
+                const seen = new Set();
+                const aggregated = [];
+                for (const set of sets || []) {
+                    for (const unit of set.result || []) {
+                        const doc = unit.doc;
+                        if (!doc)
+                            continue;
+                        if (!filterType(doc.type))
+                            continue;
+                        if (seen.has(doc.id))
+                            continue;
+                        seen.add(doc.id);
+                        aggregated.push(doc);
+                        if (aggregated.length >= limit)
+                            break;
+                    }
+                    if (aggregated.length >= limit)
+                        break;
+                }
+                results = aggregated;
+            }
+            catch (err) {
+                logger.error('FlexSearch search error:', err);
+                // fallback: linear scan
+                results = AhkDocSearchTool.corpus.filter((d) => filterType(d.type) && (d.name.toLowerCase().includes(query.toLowerCase()) ||
+                    (d.description || '').toLowerCase().includes(query.toLowerCase()))).slice(0, limit);
+            }
+            if (results.length === 0) {
+                return { content: [{ type: 'text', text: `No documentation matches for "${query}" (${category}).` }] };
+            }
+            const lines = results.map((d) => {
+                const kind = d.type[0].toUpperCase() + d.type.slice(1);
+                const desc = d.description ? (d.description.length > 180 ? d.description.slice(0, 177) + '...' : d.description) : '';
+                const path = d.path ? ` [${d.path}]` : '';
+                return `- ${kind}: ${d.name}${path}${desc ? `\n  ${desc}` : ''}`;
+            });
+            return {
+                content: [{ type: 'text', text: `Results for "${query}" (${category}):\n\n${lines.join('\n')}` }]
+            };
+        }
+        catch (error) {
+            logger.error('Error in ahk_doc_search tool:', error);
+            return {
+                content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
+                isError: true
+            };
+        }
+    }
+}
+AhkDocSearchTool.initialized = false;
+AhkDocSearchTool.index = new FlexSearch.Document({
+    document: {
+        id: 'id',
+        index: ['name', 'description', 'path'],
+        store: true
+    },
+    tokenize: 'forward',
+    cache: true,
+    preset: 'match'
+});
+AhkDocSearchTool.corpus = [];

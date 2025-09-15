@@ -7,22 +7,21 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "set NODE_ENV=development && node dist/index.js",
-    "build": "tsc -p tsconfig.build.json",
-    "postbuild": "node scripts/copy-data.js",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
     "watch": "tsc -w",
     "clean": "rimraf dist",
-    "prebuild": "npm run clean",
     "lint": "eslint src --ext .ts",
-    "test": "node dist/test.js"
+    "test": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/run-ahk-test.ps1 -Wait",
+    "test:mcp": "node scripts/test-mcp-run.js",
+    "debug:scan": "node scripts/scan-debug.js",
+    "debug:start": "node scripts/start-debug.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
     "flexsearch": "^0.7.43",
-    "fs-extra": "^11.2.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/fs-extra": "^11.0.4",
     "@types/node": "^20.10.5",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",

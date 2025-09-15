@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AhkDiagnosticProvider } from '../lsp/diagnostics.js';
 import logger from '../logger.js';
+import { autoDetect } from '../core/active-file.js';
 // Zod schema for tool arguments
 export const AhkDiagnosticsArgsSchema = z.object({
     code: z.string().describe('The AutoHotkey v2 code to analyze'),
@@ -12,7 +13,27 @@ export const AhkDiagnosticsArgsSchema = z.object({
 export const ahkDiagnosticsToolDefinition = {
     name: 'ahk_diagnostics',
     description: 'Validates AutoHotkey v2 code syntax and enforces coding standards with detailed error reporting',
-    inputSchema: AhkDiagnosticsArgsSchema
+    inputSchema: {
+        type: 'object',
+        properties: {
+            code: {
+                type: 'string',
+                description: 'The AutoHotkey v2 code to analyze'
+            },
+            enableClaudeStandards: {
+                type: 'boolean',
+                description: 'Apply Claude coding standards validation',
+                default: true
+            },
+            severity: {
+                type: 'string',
+                enum: ['error', 'warning', 'info', 'all'],
+                description: 'Filter diagnostics by severity level',
+                default: 'all'
+            }
+        },
+        required: ['code']
+    }
 };
 export class AhkDiagnosticsTool {
     constructor() {
@@ -24,6 +45,10 @@ export class AhkDiagnosticsTool {
     async execute(args) {
         try {
             logger.info(`Running AutoHotkey diagnostics with Claude standards: ${args.enableClaudeStandards}, severity filter: ${args.severity}`);
+            // Auto-detect any file paths in the code (in case user pasted a path)
+            if (args.code) {
+                autoDetect(args.code);
+            }
             // Validate arguments
             const validatedArgs = AhkDiagnosticsArgsSchema.parse(args);
             // Get diagnostics from provider

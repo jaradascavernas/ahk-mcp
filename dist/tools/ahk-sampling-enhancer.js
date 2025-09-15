@@ -15,7 +15,60 @@ export const AhkSamplingEnhancerArgsSchema = z.object({
 export const ahkSamplingEnhancerToolDefinition = {
     name: 'ahk_sampling_enhancer',
     description: 'Automatically enhances prompts with AutoHotkey v2 context using MCP sampling standards when AutoHotkey-related content is detected.',
-    inputSchema: AhkSamplingEnhancerArgsSchema
+    inputSchema: {
+        type: 'object',
+        properties: {
+            originalPrompt: {
+                type: 'string',
+                description: 'Original prompt is required'
+            },
+            includeExamples: {
+                type: 'boolean',
+                description: 'Include code examples',
+                default: true
+            },
+            contextLevel: {
+                type: 'string',
+                enum: ['minimal', 'standard', 'comprehensive'],
+                description: 'Level of context to include',
+                default: 'standard'
+            },
+            modelPreferences: {
+                type: 'object',
+                properties: {
+                    intelligencePriority: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1,
+                        description: 'Intelligence priority (0-1)',
+                        default: 0.8
+                    },
+                    costPriority: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1,
+                        description: 'Cost priority (0-1)',
+                        default: 0.3
+                    },
+                    speedPriority: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1,
+                        description: 'Speed priority (0-1)',
+                        default: 0.5
+                    }
+                }
+            },
+            maxTokens: {
+                type: 'number',
+                minimum: 50,
+                maximum: 4000,
+                description: 'Maximum tokens to generate',
+                default: 1000
+            }
+        },
+        required: ['originalPrompt']
+    }
 };
 export class AhkSamplingEnhancer {
     constructor() {
@@ -67,16 +120,11 @@ export class AhkSamplingEnhancer {
                 content: [
                     {
                         type: 'text',
-                        text: this.formatSamplingRequest(samplingRequest, enhancedContext)
-                    },
-                    {
-                        type: 'json',
-                        data: {
-                            samplingRequest,
-                            detectedKeywords: this.extractKeywords(originalPrompt),
-                            contextLevel,
-                            enhancementReason: 'AutoHotkey-related content detected, enhanced with relevant documentation'
-                        }
+                        text: this.formatSamplingRequest(samplingRequest, enhancedContext) +
+                            '\n\n---\n\n**Enhancement Details:**\n' +
+                            `- Detected Keywords: ${this.extractKeywords(originalPrompt).join(', ')}\n` +
+                            `- Context Level: ${contextLevel}\n` +
+                            `- Enhancement Reason: AutoHotkey-related content detected, enhanced with relevant documentation`
                     }
                 ]
             };

@@ -4,7 +4,11 @@ export const AhkPromptsArgsSchema = z.object({});
 export const ahkPromptsToolDefinition = {
     name: 'ahk_prompts',
     description: 'Returns a set of built-in AHK v2 prompt templates for code generation and learning.',
-    inputSchema: AhkPromptsArgsSchema
+    inputSchema: {
+        type: 'object',
+        properties: {},
+        required: []
+    }
 };
 export const PROMPTS = [
     {
@@ -29,7 +33,7 @@ export const PROMPTS = [
     },
     {
         title: "Link Manager",
-        body: "Create an AutoHotkey v2 script called **Link Manager** that:\n- Stores a multiline string `g_Links` containing several URLs\n- Parses that string on startup into an array with fields `url`, `valid`, and `displayName`\n- Builds a GUI with a  ListView (or ListBox) showing each link and a status bar for details\n- Opens the selected link in Microsoft Edge on double-click or Enter, adding https:// if missing (fallback to default browser if Edge fails)\n- Validates URLs with the regex `i)^(https?:\\/\\/)?([\\w.-]+)\\.([a-z.]{2,6})(\\/[\\w.-]*)*\\/?$`\n- Handles errors such as empty list or invalid URL and shows tooltips or status messages\n- Uses clean AHK v2 syntax, modular functions, and proper event binding"
+        body: "Create an AutoHotkey v2 script called **Link Manager** that:\n- Stores a multiline string `g_Links` containing several URLs\n- Parses that string on startup into an array with fields `url`, `valid`, and `displayName`\n- Builds a GUI with a ListView (or ListBox) showing each link and a status bar for details\n- Opens the selected link in Microsoft Edge on double-click or Enter, adding https:// if missing (fallback to default browser if Edge fails)\n- Validates URLs with a regex pattern\n- Handles errors such as empty list or invalid URL and shows tooltips or status messages\n- Uses clean AHK v2 syntax, modular functions, and proper event binding"
     },
     {
         title: "Snippet Manager",
@@ -45,10 +49,6 @@ export class AhkPromptsTool {
                     type: 'text',
                     text: '## Built-in AHK v2 Prompts\n' +
                         PROMPTS.map((p, i) => `### ${i + 1}. ${p.title || 'Prompt'}\n${p.body}\n`).join('\n')
-                },
-                {
-                    type: 'json',
-                    data: PROMPTS
                 }
             ]
         };

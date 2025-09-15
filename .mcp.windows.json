@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "autohotkey-v2": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "NODE_ENV": "production",
+        "AHK_MCP_DATA_MODE": "full",
+        "AHK_MCP_LIGHT": "0"
+      },
+      "cwd": "C:\\Users\\uphol\\Documents\\Design\\Coding\\ahk-mcp"
+    }
+  }
+}

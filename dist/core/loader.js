@@ -1,52 +1,63 @@
-import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import logger from '../logger.js';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-// Global data storage
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import fs from 'node:fs';
+// Global data storage - loaded lazily
 let ahkIndex = null;
 let ahkDocumentationFull = null;
 let ahkDocumentationIndex = null;
-// Data file paths
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const AHK_INDEX_PATH = path.join(DATA_DIR, 'ahk_index.json');
-const AHK_DOCS_FULL_PATH = path.join(DATA_DIR, 'ahk_documentation_full.json');
-const AHK_DOCS_INDEX_PATH = path.join(DATA_DIR, 'ahk_documentation_index.json');
+function resolveDataPath(rel) {
+    // Resolve relative to this module at runtime (works in dist and src builds)
+    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+    return path.resolve(moduleDir, '..', '..', 'data', rel);
+}
+async function dynamicJsonImport(relPathFromData) {
+    const relFromCore = `../../data/${relPathFromData}`;
+    // Prefer import attributes when available (Node >= 20)
+    try {
+        // @ts-ignore - import attributes are runtime-checked
+        const mod = await import(relFromCore, { with: { type: 'json' } });
+        // Some bundlers put value on .default
+        return mod.default ?? mod;
+    }
+    catch (err) {
+        // Fallback to filesystem read for older Node versions
+        try {
+            const abs = resolveDataPath(relPathFromData);
+            const text = fs.readFileSync(abs, 'utf8');
+            return JSON.parse(text);
+        }
+        catch (fsErr) {
+            logger.error('Failed to load JSON data:', relPathFromData, fsErr);
+            throw fsErr;
+        }
+    }
+}
 /**
- * Load all AutoHotkey documentation data
+ * Load all AutoHotkey documentation data from direct imports
  */
 export async function loadAhkData() {
     try {
-        logger.info('Loading AutoHotkey documentation data...');
-        // Check if data directory exists
-        if (!await fs.pathExists(DATA_DIR)) {
-            throw new Error(`Data directory not found: ${DATA_DIR}`);
-        }
-        // Load AHK index
-        if (await fs.pathExists(AHK_INDEX_PATH)) {
-            const indexData = await fs.readJson(AHK_INDEX_PATH);
-            ahkIndex = indexData;
-            logger.info(`Loaded AHK index with ${ahkIndex.functions.length} functions, ${ahkIndex.classes.length} classes`);
-        }
-        else {
-            logger.warn(`AHK index file not found: ${AHK_INDEX_PATH}`);
-        }
-        // Load full documentation
-        if (await fs.pathExists(AHK_DOCS_FULL_PATH)) {
-            ahkDocumentationFull = await fs.readJson(AHK_DOCS_FULL_PATH);
-            logger.info('Loaded full AutoHotkey documentation');
+        const mode = (process.env.AHK_MCP_DATA_MODE || '').toLowerCase();
+        const lightMode = mode === 'light' || process.env.AHK_MCP_LIGHT === '1';
+        logger.info(`Loading AutoHotkey documentation data (mode=${lightMode ? 'light' : 'full'})...`);
+        // Always load the lightweight index first
+        ahkIndex = (await dynamicJsonImport('ahk_index.json'));
+        if (!lightMode) {
+            // Load additional documentation datasets
+            ahkDocumentationFull = await dynamicJsonImport('ahk_documentation_full.json');
+            ahkDocumentationIndex = await dynamicJsonImport('ahk_documentation_index.json');
         }
         else {
-            logger.warn(`AHK full documentation file not found: ${AHK_DOCS_FULL_PATH}`);
+            ahkDocumentationFull = null;
+            ahkDocumentationIndex = null;
         }
-        // Load documentation index for semantic search
-        if (await fs.pathExists(AHK_DOCS_INDEX_PATH)) {
-            ahkDocumentationIndex = await fs.readJson(AHK_DOCS_INDEX_PATH);
-            logger.info('Loaded AutoHotkey documentation search index');
+        logger.info(`Loaded AHK index with ${ahkIndex.functions?.length || 0} functions, ${ahkIndex.classes?.length || 0} classes`);
+        if (!lightMode) {
+            logger.info('Loaded full AutoHotkey documentation and search index');
         }
         else {
-            logger.warn(`AHK documentation index file not found: ${AHK_DOCS_INDEX_PATH}`);
+            logger.info('Light mode enabled: skipped loading full documentation datasets');
         }
         logger.info('AutoHotkey documentation data loaded successfully');
     }
@@ -66,12 +77,6 @@ export function getAhkIndex() {
  */
 export function getAhkDocumentationFull() {
     return ahkDocumentationFull;
-}
-/**
- * Get the documentation search index
- */
-export function getAhkDocumentationIndex() {
-    return ahkDocumentationIndex;
 }
 /**
  * Search for functions by name or keyword
@@ -103,31 +108,7 @@ export function searchVariables(query) {
     return ahkIndex.variables.filter(variable => variable.Name.toLowerCase().includes(normalizedQuery) ||
         variable.Description.toLowerCase().includes(normalizedQuery));
 }
-/**
- * Get function by exact name
- */
-export function getFunctionByName(name) {
-    if (!ahkIndex)
-        return null;
-    return ahkIndex.functions.find(func => func.Name.toLowerCase().startsWith(name.toLowerCase())) || null;
-}
-/**
- * Get class by exact name
- */
-export function getClassByName(name) {
-    if (!ahkIndex)
-        return null;
-    return ahkIndex.classes.find(cls => cls.Name.toLowerCase() === name.toLowerCase()) || null;
-}
-/**
- * Get method by class and method name
- */
-export function getMethodByName(className, methodName) {
-    if (!ahkIndex)
-        return null;
-    return ahkIndex.methods.find(method => method.Path.toLowerCase() === className.toLowerCase() &&
-        method.Name.toLowerCase().includes(methodName.toLowerCase())) || null;
-}
+// Removed unused: getFunctionByName, getClassByName, getMethodByName
 /**
  * Initialize data loading
  */

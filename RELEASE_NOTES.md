@@ -143,7 +143,7 @@ User provides Git diff patch:
 - `SETTINGS_GUIDE.md` - Tool configuration and settings
 - `ALPHA_VERSION_GUIDE.md` - Alpha versioning system documentation
 - `SIMPLE_ACTIVE_FILE.md` - Active file system explanation
-- `CODE_SPECIFICATION.md` - Complete technical specification
+- `docs/CODE_SPECIFICATION.md` - Complete technical specification
 
 #### Updated Documentation
 - `README.md` - Completely revised with new features

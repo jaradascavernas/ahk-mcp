@@ -124,7 +124,7 @@ Edit fails → Edit fails → Edit fails
 - [Edit Tools Guide](EDIT_TOOLS_GUIDE.md) - Complete editing documentation
 - [Settings Guide](SETTINGS_GUIDE.md) - Configuration options
 - [Alpha Version Guide](ALPHA_VERSION_GUIDE.md) - Versioning system
-- [Code Specification](CODE_SPECIFICATION.md) - Technical details
+- [Code Specification](docs/CODE_SPECIFICATION.md) - Technical details
 
 ---
 

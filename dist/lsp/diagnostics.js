@@ -33,124 +33,107 @@ export class AhkDiagnosticProvider {
         }
     }
     /**
-     * Check syntax errors
+     * Check syntax errors - improved to understand AutoHotkey v2 properly
      */
     checkSyntax(code) {
+        const diagnostics = [];
+        // Check overall bracket matching across the entire code
+        const bracketErrors = this.checkGlobalBracketMatching(code);
+        diagnostics.push(...bracketErrors);
+        // Check for basic syntax issues
+        const basicErrors = this.checkBasicSyntax(code);
+        diagnostics.push(...basicErrors);
+        return diagnostics;
+    }
+    /**
+     * Check global bracket matching across entire code
+     */
+    checkGlobalBracketMatching(code) {
+        const diagnostics = [];
+        const lines = code.split('\n');
+        let braceStack = [];
+        let parenStack = [];
+        let inString = false;
+        let inComment = false;
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            const line = lines[lineIndex];
+            inComment = false; // Reset comment state for each line
+            for (let charIndex = 0; charIndex < line.length; charIndex++) {
+                const char = line[charIndex];
+                const prevChar = charIndex > 0 ? line[charIndex - 1] : '';
+                // Handle comments
+                if (char === ';' && !inString) {
+                    inComment = true;
+                    continue;
+                }
+                if (inComment)
+                    continue;
+                // Handle strings
+                if (char === '"' && prevChar !== '\\') {
+                    inString = !inString;
+                    continue;
+                }
+                if (inString)
+                    continue;
+                // Handle brackets and parentheses
+                switch (char) {
+                    case '{':
+                        braceStack.push({ line: lineIndex, char: charIndex });
+                        break;
+                    case '}':
+                        if (braceStack.length === 0) {
+                            diagnostics.push(this.createDiagnostic('Unmatched closing brace', lineIndex, charIndex, charIndex + 1, DiagnosticSeverity.Error));
+                        }
+                        else {
+                            braceStack.pop();
+                        }
+                        break;
+                    case '(':
+                        parenStack.push({ line: lineIndex, char: charIndex });
+                        break;
+                    case ')':
+                        if (parenStack.length === 0) {
+                            diagnostics.push(this.createDiagnostic('Unmatched closing parenthesis', lineIndex, charIndex, charIndex + 1, DiagnosticSeverity.Error));
+                        }
+                        else {
+                            parenStack.pop();
+                        }
+                        break;
+                }
+            }
+        }
+        // Check for unclosed brackets
+        braceStack.forEach(brace => {
+            diagnostics.push(this.createDiagnostic('Unclosed opening brace', brace.line, brace.char, brace.char + 1, DiagnosticSeverity.Error));
+        });
+        parenStack.forEach(paren => {
+            diagnostics.push(this.createDiagnostic('Unclosed opening parenthesis', paren.line, paren.char, paren.char + 1, DiagnosticSeverity.Error));
+        });
+        return diagnostics;
+    }
+    /**
+     * Check basic syntax issues
+     */
+    checkBasicSyntax(code) {
         const diagnostics = [];
         const lines = code.split('\n');
         for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             const line = lines[lineIndex];
-            const lineNumber = lineIndex;
-            // Check for common syntax errors
-            const syntaxErrors = this.checkLineSyntax(line, lineNumber);
-            diagnostics.push(...syntaxErrors);
-        }
-        return diagnostics;
-    }
-    /**
-     * Check syntax errors in a single line
-     */
-    checkLineSyntax(line, lineNumber) {
-        const diagnostics = [];
-        const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine.startsWith(';')) {
-            return diagnostics; // Skip empty lines and comments
-        }
-        // Check for unmatched brackets
-        const bracketErrors = this.checkUnmatchedBrackets(line, lineNumber);
-        diagnostics.push(...bracketErrors);
-        // Check for invalid function syntax
-        const functionErrors = this.checkFunctionSyntax(line, lineNumber);
-        diagnostics.push(...functionErrors);
-        // Check for invalid variable declarations
-        const variableErrors = this.checkVariableSyntax(line, lineNumber);
-        diagnostics.push(...variableErrors);
-        // Check for invalid hotkey syntax
-        const hotkeyErrors = this.checkHotkeySyntax(line, lineNumber);
-        diagnostics.push(...hotkeyErrors);
-        return diagnostics;
-    }
-    /**
-     * Check for unmatched brackets
-     */
-    checkUnmatchedBrackets(line, lineNumber) {
-        const diagnostics = [];
-        let openBrackets = 0;
-        let openParens = 0;
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            switch (char) {
-                case '{':
-                    openBrackets++;
-                    break;
-                case '}':
-                    openBrackets--;
-                    if (openBrackets < 0) {
-                        diagnostics.push(this.createDiagnostic('Unmatched closing brace', lineNumber, i, i + 1, DiagnosticSeverity.Error));
-                    }
-                    break;
-                case '(':
-                    openParens++;
-                    break;
-                case ')':
-                    openParens--;
-                    if (openParens < 0) {
-                        diagnostics.push(this.createDiagnostic('Unmatched closing parenthesis', lineNumber, i, i + 1, DiagnosticSeverity.Error));
-                    }
-                    break;
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine.startsWith(';')) {
+                continue; // Skip empty lines and comments
             }
-        }
-        return diagnostics;
-    }
-    /**
-     * Check function syntax
-     */
-    checkFunctionSyntax(line, lineNumber) {
-        const diagnostics = [];
-        const trimmedLine = line.trim();
-        // Check for function declaration patterns
-        const functionPattern = /^(\w+)\s*\([^)]*\)\s*\{?$/;
-        const match = trimmedLine.match(functionPattern);
-        if (match) {
-            const functionName = match[1];
-            // Check if function name starts with uppercase (AHK v2 convention)
-            if (functionName[0] !== functionName[0].toUpperCase()) {
-                diagnostics.push(this.createDiagnostic('Function names should start with uppercase letter in AutoHotkey v2', lineNumber, line.indexOf(functionName), line.indexOf(functionName) + functionName.length, DiagnosticSeverity.Warning));
+            // Check for common AutoHotkey v2 issues
+            // Check for old v1 assignment syntax
+            if (trimmedLine.match(/^\w+\s*=\s*[^=]/) && !trimmedLine.includes('==') && !trimmedLine.includes('!=')) {
+                const equalIndex = line.indexOf('=');
+                diagnostics.push(this.createDiagnostic('Use ":=" for assignment in AutoHotkey v2, "=" is for comparison', lineIndex, equalIndex, equalIndex + 1, DiagnosticSeverity.Warning));
             }
-        }
-        return diagnostics;
-    }
-    /**
-     * Check variable syntax
-     */
-    checkVariableSyntax(line, lineNumber) {
-        const diagnostics = [];
-        const trimmedLine = line.trim();
-        // Check for assignment patterns
-        const assignmentPattern = /^(\w+)\s*([:=]|[+\-*\/]?=)\s*(.+)$/;
-        const match = trimmedLine.match(assignmentPattern);
-        if (match) {
-            const varName = match[1];
-            const operator = match[2];
-            // Check for incorrect assignment operator
-            if (operator === '=' && !trimmedLine.includes('==')) {
-                diagnostics.push(this.createDiagnostic('Use ":=" for assignment, "=" for comparison in AutoHotkey v2', lineNumber, line.indexOf('='), line.indexOf('=') + 1, DiagnosticSeverity.Error));
-            }
-        }
-        return diagnostics;
-    }
-    /**
-     * Check hotkey syntax
-     */
-    checkHotkeySyntax(line, lineNumber) {
-        const diagnostics = [];
-        const trimmedLine = line.trim();
-        if (trimmedLine.includes('::')) {
-            const parts = trimmedLine.split('::');
-            const hotkey = parts[0].trim();
-            // Basic hotkey validation
-            if (!hotkey) {
-                diagnostics.push(this.createDiagnostic('Empty hotkey definition', lineNumber, 0, line.indexOf('::'), DiagnosticSeverity.Error));
+            // Check for missing #Requires directive (only warn once at top)
+            if (lineIndex < 5 && !code.includes('#Requires AutoHotkey v2')) {
+                if (lineIndex === 0) {
+                    diagnostics.push(this.createDiagnostic('Consider adding "#Requires AutoHotkey v2" directive at the top of your script', 0, 0, 1, DiagnosticSeverity.Information));
+                }
             }
         }
         return diagnostics;
@@ -180,70 +163,13 @@ export class AhkDiagnosticProvider {
         });
     }
     /**
-     * Check semantic errors
+     * Check semantic errors - simplified to avoid false positives
      */
     checkSemantics(code) {
         const diagnostics = [];
-        try {
-            const parseResult = this.parser.parse();
-            // Check for undefined function calls
-            diagnostics.push(...this.checkUndefinedFunctions(parseResult, code));
-            // Check for unused variables
-            diagnostics.push(...this.checkUnusedVariables(parseResult, code));
-            // Check for duplicate function definitions
-            diagnostics.push(...this.checkDuplicateDefinitions(parseResult));
-        }
-        catch (parseError) {
-            // If parsing fails, create a diagnostic for the parse error
-            diagnostics.push(this.createDiagnostic(`Parse error: ${parseError}`, 0, 0, 1, DiagnosticSeverity.Error));
-        }
-        return diagnostics;
-    }
-    /**
-     * Check for undefined function calls
-     */
-    checkUndefinedFunctions(parseResult, code) {
-        const diagnostics = [];
-        // TODO: Implement function call analysis
-        return diagnostics;
-    }
-    /**
-     * Check for unused variables
-     */
-    checkUnusedVariables(parseResult, code) {
-        const diagnostics = [];
-        // TODO: Implement variable usage analysis
-        return diagnostics;
-    }
-    /**
-     * Check for duplicate definitions
-     */
-    checkDuplicateDefinitions(parseResult) {
-        const diagnostics = [];
-        // Check for duplicate function names
-        const functionNames = new Map();
-        parseResult.functions.forEach((func) => {
-            const lowerName = func.name.toLowerCase();
-            if (functionNames.has(lowerName)) {
-                const original = functionNames.get(lowerName);
-                diagnostics.push(this.createDiagnostic(`Duplicate function definition: ${func.name} (first defined at line ${original.line + 1})`, func.line, 0, func.name.length, DiagnosticSeverity.Error));
-            }
-            else {
-                functionNames.set(lowerName, func);
-            }
-        });
-        // Check for duplicate class names
-        const classNames = new Map();
-        parseResult.classes.forEach((cls) => {
-            const lowerName = cls.name.toLowerCase();
-            if (classNames.has(lowerName)) {
-                const original = classNames.get(lowerName);
-                diagnostics.push(this.createDiagnostic(`Duplicate class definition: ${cls.name} (first defined at line ${original.line + 1})`, cls.line, 0, cls.name.length, DiagnosticSeverity.Error));
-            }
-            else {
-                classNames.set(lowerName, cls);
-            }
-        });
+        // For now, skip complex semantic analysis to avoid false positives
+        // The old parser was incorrectly identifying 'if' statements as functions
+        // TODO: Implement proper AutoHotkey v2 parser for semantic analysis
         return diagnostics;
     }
     /**

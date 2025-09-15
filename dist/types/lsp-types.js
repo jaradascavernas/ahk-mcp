@@ -1,32 +1,4 @@
 // LSP-like types for AutoHotkey v2 language server features
-export var CompletionItemKind;
-(function (CompletionItemKind) {
-    CompletionItemKind[CompletionItemKind["Text"] = 1] = "Text";
-    CompletionItemKind[CompletionItemKind["Method"] = 2] = "Method";
-    CompletionItemKind[CompletionItemKind["Function"] = 3] = "Function";
-    CompletionItemKind[CompletionItemKind["Constructor"] = 4] = "Constructor";
-    CompletionItemKind[CompletionItemKind["Field"] = 5] = "Field";
-    CompletionItemKind[CompletionItemKind["Variable"] = 6] = "Variable";
-    CompletionItemKind[CompletionItemKind["Class"] = 7] = "Class";
-    CompletionItemKind[CompletionItemKind["Interface"] = 8] = "Interface";
-    CompletionItemKind[CompletionItemKind["Module"] = 9] = "Module";
-    CompletionItemKind[CompletionItemKind["Property"] = 10] = "Property";
-    CompletionItemKind[CompletionItemKind["Unit"] = 11] = "Unit";
-    CompletionItemKind[CompletionItemKind["Value"] = 12] = "Value";
-    CompletionItemKind[CompletionItemKind["Enum"] = 13] = "Enum";
-    CompletionItemKind[CompletionItemKind["Keyword"] = 14] = "Keyword";
-    CompletionItemKind[CompletionItemKind["Snippet"] = 15] = "Snippet";
-    CompletionItemKind[CompletionItemKind["Color"] = 16] = "Color";
-    CompletionItemKind[CompletionItemKind["File"] = 17] = "File";
-    CompletionItemKind[CompletionItemKind["Reference"] = 18] = "Reference";
-    CompletionItemKind[CompletionItemKind["Folder"] = 19] = "Folder";
-    CompletionItemKind[CompletionItemKind["EnumMember"] = 20] = "EnumMember";
-    CompletionItemKind[CompletionItemKind["Constant"] = 21] = "Constant";
-    CompletionItemKind[CompletionItemKind["Struct"] = 22] = "Struct";
-    CompletionItemKind[CompletionItemKind["Event"] = 23] = "Event";
-    CompletionItemKind[CompletionItemKind["Operator"] = 24] = "Operator";
-    CompletionItemKind[CompletionItemKind["TypeParameter"] = 25] = "TypeParameter";
-})(CompletionItemKind || (CompletionItemKind = {}));
 export var DiagnosticSeverity;
 (function (DiagnosticSeverity) {
     DiagnosticSeverity[DiagnosticSeverity["Error"] = 1] = "Error";
@@ -63,9 +35,3 @@ export var SymbolKind;
     SymbolKind[SymbolKind["Operator"] = 25] = "Operator";
     SymbolKind[SymbolKind["TypeParameter"] = 26] = "TypeParameter";
 })(SymbolKind || (SymbolKind = {}));
-export var CompletionTriggerKind;
-(function (CompletionTriggerKind) {
-    CompletionTriggerKind[CompletionTriggerKind["Invoked"] = 1] = "Invoked";
-    CompletionTriggerKind[CompletionTriggerKind["TriggerCharacter"] = 2] = "TriggerCharacter";
-    CompletionTriggerKind[CompletionTriggerKind["TriggerForIncompleteCompletions"] = 3] = "TriggerForIncompleteCompletions";
-})(CompletionTriggerKind || (CompletionTriggerKind = {}));
