@@ -12,32 +12,59 @@ import { initializeDataLoader, getAhkIndex } from './core/loader.js';
 import logger from './logger.js';
 
 // Import tool classes and definitions
-import { AhkCompleteTool, ahkCompleteToolDefinition } from './tools/ahk-complete.js';
 import { AhkDiagnosticsTool, ahkDiagnosticsToolDefinition } from './tools/ahk-diagnostics.js';
 import { AhkSummaryTool, ahkSummaryToolDefinition } from './tools/ahk-summary.js';
 import { AhkPromptsTool, ahkPromptsToolDefinition, PROMPTS } from './tools/ahk-prompts.js';
 import { AhkAnalyzeTool, ahkAnalyzeToolDefinition } from './tools/ahk-analyze.js';
 import { AhkContextInjectorTool, ahkContextInjectorToolDefinition } from './tools/ahk-context-injector.js';
-import { AhkAutoContextProvider } from './tools/ahk-auto-context.js';
 import { AhkSamplingEnhancer, ahkSamplingEnhancerToolDefinition } from './tools/ahk-sampling-enhancer.js';
+import { AhkDebugAgentTool, ahkDebugAgentToolDefinition } from './tools/ahk-debug-agent.js';
+import { AhkDocSearchTool, ahkDocSearchToolDefinition } from './tools/ahk-doc-search.js';
+import { AhkVSCodeProblemsTool, ahkVSCodeProblemsToolDefinition } from './tools/ahk-vscode-problems.js';
+import { AhkRunTool, ahkRunToolDefinition } from './tools/ahk-run.js';
+import { AhkRecentTool, ahkRecentToolDefinition } from './tools/ahk-recent.js';
+import { AhkConfigTool, ahkConfigToolDefinition } from './tools/ahk-config.js';
+import { AhkActiveFileTool, ahkActiveFileToolDefinition } from './tools/ahk-active-file.js';
+import { AhkAutoFileTool, ahkAutoFileToolDefinition } from './tools/ahk-auto-file.js';
+import { AhkProcessRequestTool, ahkProcessRequestToolDefinition } from './tools/ahk-process-request.js';
+import { AhkFileTool, ahkFileToolDefinition } from './tools/ahk-file.js';
+import { AhkEditTool, ahkEditToolDefinition } from './tools/ahk-edit.js';
+import { AhkDiffEditTool, ahkDiffEditToolDefinition } from './tools/ahk-diff-edit.js';
+import { AhkSettingsTool, ahkSettingsToolDefinition } from './tools/ahk-settings.js';
+import { AhkAlphaTool, ahkAlphaToolDefinition } from './tools/ahk-alpha.js';
+import { AhkFileEditorTool, ahkFileEditorToolDefinition } from './tools/ahk-file-editor.js';
+import { autoDetect } from './core/active-file.js';
+import { toolSettings } from './core/tool-settings.js';
 
 export class AutoHotkeyMcpServer {
   private server: Server;
-  private ahkCompleteToolInstance: AhkCompleteTool;
   private ahkDiagnosticsToolInstance: AhkDiagnosticsTool;
   private ahkSummaryToolInstance: AhkSummaryTool;
   private ahkPromptsToolInstance: AhkPromptsTool;
   private ahkAnalyzeToolInstance: AhkAnalyzeTool;
   private ahkContextInjectorToolInstance: AhkContextInjectorTool;
   private ahkSamplingEnhancerToolInstance: AhkSamplingEnhancer;
+  private ahkDebugAgentToolInstance: AhkDebugAgentTool;
+  private ahkDocSearchToolInstance: AhkDocSearchTool;
+  private ahkRunToolInstance: AhkRunTool;
+  private ahkVSCodeProblemsToolInstance: AhkVSCodeProblemsTool;
+  private ahkRecentToolInstance: AhkRecentTool;
+  private ahkConfigToolInstance: AhkConfigTool;
+  private ahkActiveFileToolInstance: AhkActiveFileTool;
+  private ahkAutoFileToolInstance: AhkAutoFileTool;
+  private ahkProcessRequestToolInstance: AhkProcessRequestTool;
+  private ahkFileToolInstance: AhkFileTool;
+  private ahkEditToolInstance: AhkEditTool;
+  private ahkDiffEditToolInstance: AhkDiffEditTool;
+  private ahkSettingsToolInstance: AhkSettingsTool;
+  private ahkAlphaToolInstance: AhkAlphaTool;
+  private ahkFileEditorToolInstance: AhkFileEditorTool;
 
   constructor() {
     this.server = new Server(
       {
-        name: 'ahk-mcp',
+        name: 'ahk-mcp-server',
         version: '2.0.0',
-        fileExtensions: ['.ahk'],
-        languages: ['autohotkey', 'ahk'],
       },
       {
         capabilities: {
@@ -45,20 +72,32 @@ export class AutoHotkeyMcpServer {
           prompts: {},
           resources: {},
           sampling: {},
-          fileExtensions: ['.ahk'],
-          languages: ['autohotkey', 'ahk'],
         },
       }
     );
 
     // Initialize tool instances
-    this.ahkCompleteToolInstance = new AhkCompleteTool();
     this.ahkDiagnosticsToolInstance = new AhkDiagnosticsTool();
     this.ahkSummaryToolInstance = new AhkSummaryTool();
     this.ahkPromptsToolInstance = new AhkPromptsTool();
     this.ahkAnalyzeToolInstance = new AhkAnalyzeTool();
     this.ahkContextInjectorToolInstance = new AhkContextInjectorTool();
     this.ahkSamplingEnhancerToolInstance = new AhkSamplingEnhancer();
+    this.ahkDebugAgentToolInstance = new AhkDebugAgentTool();
+    this.ahkDocSearchToolInstance = new AhkDocSearchTool();
+    this.ahkRunToolInstance = new AhkRunTool();
+    this.ahkVSCodeProblemsToolInstance = new AhkVSCodeProblemsTool();
+    this.ahkRecentToolInstance = new AhkRecentTool();
+    this.ahkConfigToolInstance = new AhkConfigTool();
+    this.ahkActiveFileToolInstance = new AhkActiveFileTool();
+    this.ahkAutoFileToolInstance = new AhkAutoFileTool();
+    this.ahkProcessRequestToolInstance = new AhkProcessRequestTool();
+    this.ahkFileToolInstance = new AhkFileTool();
+    this.ahkEditToolInstance = new AhkEditTool();
+    this.ahkDiffEditToolInstance = new AhkDiffEditTool();
+    this.ahkSettingsToolInstance = new AhkSettingsTool();
+    this.ahkAlphaToolInstance = new AhkAlphaTool();
+    this.ahkFileEditorToolInstance = new AhkFileEditorTool();
 
     this.setupToolHandlers();
     this.setupPromptHandlers();
@@ -75,13 +114,27 @@ export class AutoHotkeyMcpServer {
       
       return {
         tools: [
-          ahkCompleteToolDefinition,
+          ahkFileEditorToolDefinition, // PRIMARY FILE EDITING TOOL - Listed first for priority
+          ahkEditToolDefinition,
+          ahkFileToolDefinition,
+          ahkDiffEditToolDefinition,
           ahkDiagnosticsToolDefinition,
-          ahkSummaryToolDefinition,
-          ahkPromptsToolDefinition,
+          ahkRunToolDefinition,
           ahkAnalyzeToolDefinition,
           ahkContextInjectorToolDefinition,
+          ahkSummaryToolDefinition,
+          ahkPromptsToolDefinition,
           ahkSamplingEnhancerToolDefinition,
+          ahkDebugAgentToolDefinition,
+          ahkDocSearchToolDefinition,
+          ahkVSCodeProblemsToolDefinition,
+          ahkRecentToolDefinition,
+          ahkConfigToolDefinition,
+          ahkActiveFileToolDefinition,
+          ahkAutoFileToolDefinition,
+          ahkProcessRequestToolDefinition,
+          ahkSettingsToolDefinition,
+          ahkAlphaToolDefinition,
         ],
       };
     });
@@ -90,12 +143,23 @@ export class AutoHotkeyMcpServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       
-      logger.info(`Executing tool: ${name}`);
+      logger.info(`🔧 Tool called: ${name}`);
+      logger.debug(`🔧 Tool arguments:`, args);
+      
+      // AUTO-DETECT FILE PATHS IN ANY TOOL INPUT (if enabled)
+      // Check all string arguments for potential file paths
+      if (toolSettings.isFileDetectionAllowed() && args && typeof args === 'object') {
+        for (const value of Object.values(args)) {
+          if (typeof value === 'string') {
+            autoDetect(value);
+          }
+        }
+      }
 
       try {
         switch (name) {
-          case 'ahk_complete':
-            return await this.ahkCompleteToolInstance.execute(args as any);
+          case 'ahk_file_editor':
+            return await this.ahkFileEditorToolInstance.execute(args as any);
 
           case 'ahk_diagnostics':
             return await this.ahkDiagnosticsToolInstance.execute(args as any);
@@ -114,6 +178,48 @@ export class AutoHotkeyMcpServer {
 
           case 'ahk_sampling_enhancer':
             return await this.ahkSamplingEnhancerToolInstance.execute(args as any);
+
+          case 'ahk_debug_agent':
+            return await this.ahkDebugAgentToolInstance.execute(args as any);
+
+          case 'ahk_doc_search':
+            return await this.ahkDocSearchToolInstance.execute(args as any);
+
+          case 'ahk_run':
+            return await this.ahkRunToolInstance.execute(args as any);
+
+          case 'ahk_vscode_problems':
+            return await this.ahkVSCodeProblemsToolInstance.execute(args as any);
+
+          case 'ahk_recent_scripts':
+            return await this.ahkRecentToolInstance.execute(args as any);
+
+          case 'ahk_config':
+            return await this.ahkConfigToolInstance.execute(args as any);
+
+          case 'ahk_active_file':
+            return await this.ahkActiveFileToolInstance.execute(args as any);
+
+          case 'ahk_auto_file':
+            return await this.ahkAutoFileToolInstance.execute(args as any);
+
+          case 'ahk_process_request':
+            return await this.ahkProcessRequestToolInstance.execute(args as any);
+
+          case 'ahk_file':
+            return await this.ahkFileToolInstance.execute(args as any);
+
+          case 'ahk_edit':
+            return await this.ahkEditToolInstance.execute(args as any);
+
+          case 'ahk_diff_edit':
+            return await this.ahkDiffEditToolInstance.execute(args as any);
+
+          case 'ahk_settings':
+            return await this.ahkSettingsToolInstance.execute(args as any);
+
+          case 'ahk_alpha':
+            return await this.ahkAlphaToolInstance.execute(args as any);
 
           default:
             logger.error(`Unknown tool: ${name}`);
@@ -679,90 +785,6 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
     });
   }
 
-  /**
-   * Automatically create sampling requests for AutoHotkey-related prompts
-   * This follows MCP sampling standards for automatic context enhancement
-   */
-  async createAutoHotkeyContextSamplingRequest(
-    originalPrompt: string,
-    options: {
-      contextLevel?: 'minimal' | 'standard' | 'comprehensive';
-      modelPreferences?: {
-        intelligencePriority?: number;
-        costPriority?: number;
-        speedPriority?: number;
-      };
-      maxTokens?: number;
-    } = {}
-  ): Promise<any> {
-    const samplingEnhancer = this.ahkSamplingEnhancerToolInstance;
-    
-    // Use the sampling enhancer to create a properly formatted request
-    const defaultModelPreferences = {
-      intelligencePriority: 0.8,
-      costPriority: 0.3,
-      speedPriority: 0.5
-    };
-    
-    const enhancementResult = await samplingEnhancer.execute({
-      originalPrompt,
-      includeExamples: true,
-      contextLevel: options.contextLevel || 'standard',
-      modelPreferences: {
-        intelligencePriority: options.modelPreferences?.intelligencePriority ?? defaultModelPreferences.intelligencePriority,
-        costPriority: options.modelPreferences?.costPriority ?? defaultModelPreferences.costPriority,
-        speedPriority: options.modelPreferences?.speedPriority ?? defaultModelPreferences.speedPriority
-      },
-      maxTokens: options.maxTokens || 1000
-    });
-
-    return enhancementResult;
-  }
-
-  /**
-   * Process incoming messages and automatically enhance AutoHotkey-related content
-   * This method demonstrates how to implement automatic context injection
-   */
-  async processMessageWithAutoContext(message: string): Promise<{
-    enhanced: boolean;
-    samplingRequest?: any;
-    originalMessage: string;
-    enhancedMessage?: string;
-  }> {
-    // Pattern matching for AutoHotkey content
-    const ahkPatterns = [
-      /\b(autohotkey|ahk)\b/gi,
-      /\b(hotkey|gui|clipboard|send|msgbox)\b/gi,
-      /\ba_\w+\b/gi,
-      /\b(script|automation|macro)\b/gi
-    ];
-
-    const isAutoHotkeyRelated = ahkPatterns.some(pattern => pattern.test(message));
-
-    if (!isAutoHotkeyRelated) {
-      return {
-        enhanced: false,
-        originalMessage: message
-      };
-    }
-
-    // Create enhanced sampling request
-    const samplingRequest = await this.createAutoHotkeyContextSamplingRequest(message, {
-      contextLevel: 'standard',
-      modelPreferences: {
-        intelligencePriority: 0.8,
-        costPriority: 0.3,
-        speedPriority: 0.5
-      }
-    });
-
-    return {
-      enhanced: true,
-      samplingRequest,
-      originalMessage: message,
-      enhancedMessage: `Enhanced with AutoHotkey context: ${message}`
-    };
-  }
 
   /**
    * Initialize the server and load data

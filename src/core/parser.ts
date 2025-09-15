@@ -260,7 +260,7 @@ export class AhkParser {
     }
 
     const keyPart = match[1];
-    const action = match[2];
+    // const action = match[2];
     
     // Parse modifiers and key
     const modifiers: string[] = [];
