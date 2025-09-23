@@ -17,6 +17,7 @@ export interface ToolSettings {
     ahk_active_file: boolean;
     ahk_process_request: boolean;
     ahk_alpha: boolean;
+    ahk_small_edit: boolean;
     // Other tools can be added here
     [key: string]: boolean;
   };
@@ -30,6 +31,9 @@ export interface ToolSettings {
   alwaysBackup: boolean;
   restrictToAhkFiles: boolean;
   maxFileSize: number; // in bytes
+
+  // Convenience settings
+  autoRunAfterEdit: boolean;
 }
 
 class ToolSettingsManager {
@@ -79,6 +83,7 @@ class ToolSettingsManager {
         ahk_active_file: true,
         ahk_process_request: true,
         ahk_alpha: true,
+        ahk_small_edit: true,
         
         // Core tools - always enabled
         ahk_diagnostics: true,
@@ -103,7 +108,10 @@ class ToolSettingsManager {
       // Safety settings
       alwaysBackup: true,
       restrictToAhkFiles: true,
-      maxFileSize: 10 * 1024 * 1024 // 10 MB
+      maxFileSize: 10 * 1024 * 1024, // 10 MB
+
+      // Convenience settings
+      autoRunAfterEdit: false
     };
   }
   
@@ -112,13 +120,22 @@ class ToolSettingsManager {
       if (fs.existsSync(this.settingsPath)) {
         const content = fs.readFileSync(this.settingsPath, 'utf-8');
         const loaded = JSON.parse(content);
-        // Merge with defaults to ensure all keys exist
-        return { ...this.getDefaultSettings(), ...loaded };
+        const defaults = this.getDefaultSettings();
+        const mergedEnabled = {
+          ...defaults.enabledTools,
+          ...(loaded.enabledTools || {}),
+        };
+
+        return {
+          ...defaults,
+          ...loaded,
+          enabledTools: mergedEnabled,
+        };
       }
     } catch (error) {
       logger.warn('Failed to load tool settings, using defaults:', error);
     }
-    
+
     return this.getDefaultSettings();
   }
   
@@ -198,7 +215,7 @@ class ToolSettingsManager {
    * Enable/disable file editing tools as a group
    */
   setFileEditingTools(enabled: boolean): void {
-    const fileTools = ['ahk_edit', 'ahk_diff_edit', 'ahk_file', 'ahk_auto_file', 'ahk_active_file', 'ahk_process_request', 'ahk_alpha'];
+    const fileTools = ['ahk_edit', 'ahk_diff_edit', 'ahk_file', 'ahk_auto_file', 'ahk_active_file', 'ahk_process_request', 'ahk_alpha', 'ahk_small_edit'];
     for (const tool of fileTools) {
       this.settings.enabledTools[tool] = enabled;
     }
@@ -207,7 +224,17 @@ class ToolSettingsManager {
     this.saveSettings();
     logger.info(`File editing tools ${enabled ? 'enabled' : 'disabled'}`);
   }
-  
+
+  setAutoRunAfterEdit(enabled: boolean): void {
+    this.settings.autoRunAfterEdit = enabled;
+    this.saveSettings();
+    logger.info(`Auto-run after edit ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  shouldAutoRunAfterEdit(): boolean {
+    return this.settings.autoRunAfterEdit;
+  }
+
   /**
    * Get tool availability message
    */
@@ -216,7 +243,7 @@ class ToolSettingsManager {
       return `⚠️ Tool '${toolName}' is currently disabled.\n\nTo enable it, use the 'ahk_settings' tool:\n\`\`\`json\n{\n  "tool": "ahk_settings",\n  "arguments": {\n    "action": "enable_tool",\n    "tool": "${toolName}"\n  }\n}\n\`\`\``;
     }
     
-    if (!this.settings.allowFileEditing && ['ahk_edit', 'ahk_diff_edit'].includes(toolName)) {
+    if (!this.settings.allowFileEditing && ['ahk_edit', 'ahk_diff_edit', 'ahk_small_edit'].includes(toolName)) {
       return `⚠️ File editing is currently disabled.\n\nTo enable it, use the 'ahk_settings' tool:\n\`\`\`json\n{\n  "tool": "ahk_settings",\n  "arguments": {\n    "action": "enable_editing"\n  }\n}\n\`\`\``;
     }
     

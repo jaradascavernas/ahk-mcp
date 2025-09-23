@@ -10,6 +10,9 @@ For basic file editing operations like replace, insert, delete, append, prepend.
 ### 2. `ahk_diff_edit` - Unified Diff Patches
 For applying unified diff patches (like Git diffs) to files.
 
+### 3. `ahk_small_edit` - Targeted, Low-Token Updates
+Optimised for quick tweaks without sharing whole files. Supports regex or literal replacements and line-level inserts/deletes across one or many files. Optional `preview` shows a diff instead of writing.
+
 ## 📝 ahk_edit Tool
 
 ### Replace Text
@@ -70,6 +73,20 @@ For applying unified diff patches (like Git diffs) to files.
 }
 ```
 
+### Replace and Run Immediately
+```json
+{
+  "tool": "ahk_edit",
+  "arguments": {
+    "action": "replace",
+    "search": "MsgBox(\"Hello\")",
+    "content": "MsgBox(\"Hello world!\")",
+    "runAfter": true
+  }
+}
+```
+> Tip: Toggle the default behaviour via `ahk_settings` (`enable_auto_run` / `disable_auto_run`).
+
 ### Prepend to Beginning
 ```json
 {
@@ -80,6 +97,55 @@ For applying unified diff patches (like Git diffs) to files.
   }
 }
 ```
+
+## ⚡ ahk_small_edit Quick Examples
+
+### Regex Replace with Preview
+```json
+{
+  "tool": "ahk_small_edit",
+  "arguments": {
+    "action": "replace_regex",
+    "file": "docs/PROJECT_STATUS.md",
+    "find": "95%",
+    "replace": "96%",
+    "preview": true
+  }
+}
+```
+
+### Literal Replace Across Multiple Files
+```json
+{
+  "tool": "ahk_small_edit",
+  "arguments": {
+    "action": "replace_literal",
+    "files": [
+      "README.md",
+      "docs/PROJECT_STATUS.md"
+    ],
+    "find": "AutoHotkey v2",
+    "replace": "AHK v2",
+    "all": true,
+    "backup": true
+  }
+}
+```
+
+### Insert After Specific Line
+```json
+{
+  "tool": "ahk_small_edit",
+  "arguments": {
+    "action": "line_insert_after",
+    "file": "src/server.ts",
+    "line": 140,
+    "content": "// TODO: Add new transport option",
+    "runAfter": true
+  }
+}
+```
+> Tip: Enable persistent auto-run with `ahk_settings` → `enable_auto_run`.
 
 ## 🔀 ahk_diff_edit Tool
 
@@ -125,6 +191,18 @@ Tool Call:
   }
 }
 ```
+
+### Apply Diff and Run Right Away
+```json
+{
+  "tool": "ahk_diff_edit",
+  "arguments": {
+    "diff": "--- script.ahk\n+++ script.ahk\n@@\n-MsgBox(\"Old\")\n+MsgBox(\"New\")",
+    "runAfter": true
+  }
+}
+```
+> Tip: Toggle the default behaviour via `ahk_settings` if you want scripts to run automatically every time.
 
 ### Example 2: Insert Function
 ```

@@ -6,16 +6,21 @@
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "start:sse": "node dist/index.js --sse",
+    "start:sse": "cross-env PORT=3000 node dist/index.js --sse",
+    "start:chatgpt": "cross-env PORT=3000 node dist/index.js --sse",
     "dev": "set NODE_ENV=development && node dist/index.js",
     "build": "npm run clean && tsc -p tsconfig.build.json",
+    "build:restart": "npm run build && npm run claude:restart",
     "watch": "tsc -w",
+    "watch:restart": "npm run build:restart && npm run claude:watch",
     "clean": "rimraf dist",
     "lint": "eslint src --ext .ts",
     "test": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/run-ahk-test.ps1 -Wait",
     "test:mcp": "node scripts/test-mcp-run.js",
     "debug:scan": "node scripts/scan-debug.js",
-    "debug:start": "node scripts/start-debug.js"
+    "debug:start": "node scripts/start-debug.js",
+    "claude:restart": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/restart-claude-hook.ps1 -Once",
+    "claude:watch": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/restart-claude-hook.ps1 -Watch"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
@@ -30,6 +35,7 @@
     "@types/node": "^20.10.5",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
+    "cross-env": "^10.0.0",
     "eslint": "^8.56.0",
     "rimraf": "^5.0.5",
     "ts-node": "^10.9.2",

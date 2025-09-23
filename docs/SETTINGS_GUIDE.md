@@ -36,6 +36,26 @@ You now have a comprehensive settings system that allows you to **enable or disa
 }
 ```
 
+### Enable Auto Run After Edits
+```json
+{
+  "tool": "ahk_settings",
+  "arguments": {
+    "action": "enable_auto_run"
+  }
+}
+```
+
+### Disable Auto Run After Edits
+```json
+{
+  "tool": "ahk_settings",
+  "arguments": {
+    "action": "disable_auto_run"
+  }
+}
+```
+
 ### Disable a Specific Tool
 ```json
 {
@@ -65,8 +85,10 @@ You now have a comprehensive settings system that allows you to **enable or disa
 | `get` | Show current settings | View all tool states |
 | `enable_tool` | Enable a specific tool | `"tool": "ahk_edit"` |
 | `disable_tool` | Disable a specific tool | `"tool": "ahk_file"` |
-| `enable_editing` | Enable ALL file editing tools | Enables 6 tools at once |
-| `disable_editing` | Disable ALL file editing tools | Disables 6 tools at once |
+| `enable_editing` | Enable ALL file editing tools | Enables 7 tools at once |
+| `disable_editing` | Disable ALL file editing tools | Disables 7 tools at once |
+| `enable_auto_run` | Enable automatic run after edits | Persists the `runAfter` preference |
+| `disable_auto_run` | Disable automatic run after edits | Keeps scripts from launching automatically |
 | `enable_all` | Enable all optional tools | Everything on |
 | `disable_all` | Disable all non-core tools | Minimal mode |
 | `reset` | Reset to default settings | Factory defaults |
@@ -81,6 +103,7 @@ You now have a comprehensive settings system that allows you to **enable or disa
 - `ahk_auto_file` - Automatic file detection
 - `ahk_active_file` - Legacy active file tool
 - `ahk_process_request` - Multi-line request processing
+- `ahk_small_edit` - Lightweight line/pattern edits
 
 ### Core Tools (Always enabled)
 - `ahk_diagnostics` - Code validation
@@ -116,6 +139,7 @@ You now have a comprehensive settings system that allows you to **enable or disa
 | `alwaysBackup` | boolean | Force backups on all edits | true |
 | `restrictToAhkFiles` | boolean | Only allow .ahk file operations | true |
 | `maxFileSize` | number | Max file size in bytes | 10485760 (10MB) |
+| `autoRunAfterEdit` | boolean | Run scripts automatically after edits | false |
 
 ## 💾 Settings Storage
 
@@ -132,14 +156,16 @@ Settings are persisted in:
     "ahk_file": true,
     "ahk_auto_file": true,
     "ahk_active_file": true,
-    "ahk_process_request": true
+    "ahk_process_request": true,
+    "ahk_small_edit": true
   },
   "allowFileEditing": true,
   "allowFileDetection": true,
   "requireExplicitPaths": false,
   "alwaysBackup": true,
   "restrictToAhkFiles": true,
-  "maxFileSize": 10485760
+  "maxFileSize": 10485760,
+  "autoRunAfterEdit": false
 }
 ```
 

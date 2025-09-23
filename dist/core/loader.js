@@ -5,7 +5,6 @@ import fs from 'node:fs';
 // Global data storage - loaded lazily
 let ahkIndex = null;
 let ahkDocumentationFull = null;
-let ahkDocumentationIndex = null;
 function resolveDataPath(rel) {
     // Resolve relative to this module at runtime (works in dist and src builds)
     const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -15,7 +14,6 @@ async function dynamicJsonImport(relPathFromData) {
     const relFromCore = `../../data/${relPathFromData}`;
     // Prefer import attributes when available (Node >= 20)
     try {
-        // @ts-ignore - import attributes are runtime-checked
         const mod = await import(relFromCore, { with: { type: 'json' } });
         // Some bundlers put value on .default
         return mod.default ?? mod;
@@ -46,11 +44,9 @@ export async function loadAhkData() {
         if (!lightMode) {
             // Load additional documentation datasets
             ahkDocumentationFull = await dynamicJsonImport('ahk_documentation_full.json');
-            ahkDocumentationIndex = await dynamicJsonImport('ahk_documentation_index.json');
         }
         else {
             ahkDocumentationFull = null;
-            ahkDocumentationIndex = null;
         }
         logger.info(`Loaded AHK index with ${ahkIndex.functions?.length || 0} functions, ${ahkIndex.classes?.length || 0} classes`);
         if (!lightMode) {

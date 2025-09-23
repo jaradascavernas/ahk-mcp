@@ -121,10 +121,15 @@ Edit fails → Edit fails → Edit fails
 
 ### 🔗 Full Documentation
 
-- [Edit Tools Guide](EDIT_TOOLS_GUIDE.md) - Complete editing documentation
-- [Settings Guide](SETTINGS_GUIDE.md) - Configuration options
-- [Alpha Version Guide](ALPHA_VERSION_GUIDE.md) - Versioning system
-- [Code Specification](docs/CODE_SPECIFICATION.md) - Technical details
+- **Setup Guides:**
+  - [Claude Desktop Setup](docs/CLAUDE_DESKTOP_SETUP.md) - Configure for Claude Desktop
+  - [Claude Code Setup](docs/CLAUDE_CODE_SETUP.md) - Configure for Claude Code CLI
+- **Feature Guides:**
+  - [Edit Tools Guide](EDIT_TOOLS_GUIDE.md) - Complete editing documentation
+  - [Settings Guide](SETTINGS_GUIDE.md) - Configuration options
+  - [Alpha Version Guide](ALPHA_VERSION_GUIDE.md) - Versioning system
+- **Technical:**
+  - [Code Specification](docs/CODE_SPECIFICATION.md) - Technical details
 
 ---
 

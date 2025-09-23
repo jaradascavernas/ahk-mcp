@@ -102,6 +102,19 @@ export function setActiveFile(filePath) {
     }
 }
 /**
+ * Clear the persisted active file entry
+ */
+export function clearActiveFile() {
+    const cfg = loadConfig();
+    if (!cfg.activeFile) {
+        return;
+    }
+    delete cfg.activeFile;
+    cfg.lastModified = new Date().toISOString();
+    saveConfig(cfg);
+    logger.info('Active file removed from config');
+}
+/**
  * Get the active file path
  */
 export function getActiveFile() {
@@ -122,7 +135,7 @@ export function detectFilePaths(text) {
         });
     }
     // Pattern 2: Paths with drive letters (Windows)
-    const drivePaths = text.match(/[A-Z]:[\\//][^\s"']+\.ahk/gi);
+    const drivePaths = text.match(/[A-Z]:(?:\|\/)[^\s"']+\.ahk/gi);
     if (drivePaths) {
         paths.push(...drivePaths);
     }

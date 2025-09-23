@@ -1,5 +1,6 @@
 import logger from '../logger.js';
-import { detectFilePaths, resolveFilePath, setActiveFile } from './config.js';
+import { detectFilePaths, resolveFilePath } from './config.js';
+import { setActiveFilePath } from './active-file.js';
 
 /**
  * Message interceptor for automatic file detection
@@ -72,10 +73,14 @@ export class MessageInterceptor {
     if (this.autoSetActive && result.resolvedFiles.length > 0) {
       const firstFile = result.resolvedFiles[0];
       if (firstFile !== this.lastDetectedFile) {
-        setActiveFile(firstFile);
-        this.lastDetectedFile = firstFile;
-        result.activeFileSet = true;
-        logger.info(`Auto-set active file: ${firstFile}`);
+        const setSuccess = setActiveFilePath(firstFile);
+        if (setSuccess) {
+          this.lastDetectedFile = firstFile;
+          result.activeFileSet = true;
+          logger.info(`Auto-set active file: ${firstFile}`);
+        } else {
+          logger.warn(`Failed to auto-set active file: ${firstFile}`);
+        }
       }
     }
 

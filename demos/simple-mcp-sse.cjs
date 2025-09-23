@@ -42,10 +42,6 @@ app.get('/sse', (req, res) => {
   });
 });
 
-// Handle favicon requests to stop 404s
-app.get('/favicon.ico', (req, res) => res.status(204).send());
-app.get('/favicon.png', (req, res) => res.status(204).send());
-app.get('/favicon.svg', (req, res) => res.status(204).send());
 
 // Handle POST to root for MCP messages
 app.post('/', (req, res) => {
@@ -283,7 +279,7 @@ app.get('/', (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤖 AutoHotkey v2 MCP Server</h1>
+            <h1>AutoHotkey v2 MCP Server</h1>
             <p>ChatGPT Integration Dashboard</p>
             <span class="status">ONLINE</span>
         </div>
@@ -305,29 +301,29 @@ app.get('/', (req, res) => {
 
         <div class="endpoints">
             <div class="endpoint">
-                <h3>🔗 SSE Endpoint</h3>
+                <h3>SSE Endpoint</h3>
                 <p><code>/sse</code></p>
                 <p>ChatGPT connects here for real-time communication</p>
             </div>
             <div class="endpoint">
-                <h3>📨 Message Endpoint</h3>
+                <h3>Message Endpoint</h3>
                 <p><code>/message</code> & <code>/</code></p>
                 <p>Receives MCP protocol messages</p>
             </div>
             <div class="endpoint">
-                <h3>🛠️ Tools Available</h3>
+                <h3>Tools Available</h3>
                 <p><code>search</code>, <code>fetch</code>, <code>ahk_analyze</code></p>
                 <p>Search docs, fetch details, analyze code</p>
             </div>
             <div class="endpoint">
-                <h3>❤️ Health Check</h3>
+                <h3>Health Check</h3>
                 <p><code>/health</code></p>
                 <p>Server status monitoring</p>
             </div>
         </div>
 
-        <h3>📊 Real-time Activity Monitor</h3>
-        <button class="refresh" onclick="location.reload()">🔄 Refresh Logs</button>
+        <h3>Real-time Activity Monitor</h3>
+        <button class="refresh" onclick="location.reload()">Refresh Logs</button>
         <div class="logs" id="logs">
             <div style="color: #569cd6;">[INFO] Server running on port 3000</div>
             <div style="color: #4ec9b0;">[SSE] Endpoint ready for ChatGPT connections</div>

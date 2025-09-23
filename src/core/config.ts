@@ -93,11 +93,11 @@ export function resolveSearchDirs(argsScriptDir?: string, argsExtraDirs?: string
 export function setActiveFile(filePath: string): void {
   const cfg = loadConfig();
   const normalized = normalizeDir(filePath);
-  
+
   if (normalized && fs.existsSync(normalized)) {
     cfg.activeFile = normalized;
     cfg.lastModified = new Date().toISOString();
-    
+
     // Track auto-detected paths
     if (!cfg.autoDetectedPaths) {
       cfg.autoDetectedPaths = [];
@@ -109,12 +109,26 @@ export function setActiveFile(filePath: string): void {
         cfg.autoDetectedPaths = cfg.autoDetectedPaths.slice(-10);
       }
     }
-    
+
     saveConfig(cfg);
     logger.info(`Active file updated: ${normalized}`);
   } else {
     logger.warn(`File does not exist: ${filePath}`);
   }
+}
+
+/**
+ * Clear the persisted active file entry
+ */
+export function clearActiveFile(): void {
+  const cfg = loadConfig();
+  if (!cfg.activeFile) {
+    return;
+  }
+  delete cfg.activeFile;
+  cfg.lastModified = new Date().toISOString();
+  saveConfig(cfg);
+  logger.info('Active file removed from config');
 }
 
 /**
@@ -130,7 +144,7 @@ export function getActiveFile(): string | undefined {
  */
 export function detectFilePaths(text: string): string[] {
   const paths: string[] = [];
-  
+
   // Pattern 1: Quoted paths
   const quotedPaths = text.match(/["']([^"']*\.ahk)["']/gi);
   if (quotedPaths) {
@@ -139,25 +153,25 @@ export function detectFilePaths(text: string): string[] {
       paths.push(cleaned);
     });
   }
-  
+
   // Pattern 2: Paths with drive letters (Windows)
-  const drivePaths = text.match(/[A-Z]:[\\//][^\s"']+\.ahk/gi);
+  const drivePaths = text.match(/[A-Z]:(?:\|\/)[^\s"']+\.ahk/gi);
   if (drivePaths) {
     paths.push(...drivePaths);
   }
-  
+
   // Pattern 3: Relative paths
   const relativePaths = text.match(/(?:^|\s)(?:\.\/|\.\.\/|[\w-]+\/)*[\w-]+\.ahk/gi);
   if (relativePaths) {
     paths.push(...relativePaths.map(p => p.trim()));
   }
-  
+
   // Pattern 4: Just filename.ahk
   const fileNames = text.match(/\b[\w-]+\.ahk\b/gi);
   if (fileNames) {
     paths.push(...fileNames);
   }
-  
+
   return [...new Set(paths)]; // Remove duplicates
 }
 
@@ -169,13 +183,13 @@ export function resolveFilePath(pathOrName: string): string | undefined {
   if (path.isAbsolute(pathOrName) && fs.existsSync(pathOrName)) {
     return path.resolve(pathOrName);
   }
-  
+
   // Check if it exists relative to current directory
   const fromCwd = path.resolve(process.cwd(), pathOrName);
   if (fs.existsSync(fromCwd)) {
     return fromCwd;
   }
-  
+
   // Check in configured directories
   const searchDirs = resolveSearchDirs();
   for (const dir of searchDirs) {
@@ -184,7 +198,7 @@ export function resolveFilePath(pathOrName: string): string | undefined {
       return fullPath;
     }
   }
-  
+
   // Check if there's a script directory set
   const cfg = loadConfig();
   if (cfg.scriptDir) {
@@ -193,7 +207,7 @@ export function resolveFilePath(pathOrName: string): string | undefined {
       return fromScriptDir;
     }
   }
-  
+
   return undefined;
 }
 

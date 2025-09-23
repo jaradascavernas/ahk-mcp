@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import logger from '../logger.js';
-import { loadConfig, saveConfig, normalizeDir } from '../core/config.js';
+import { loadConfig } from '../core/config.js';
+import { getActiveFilePath, setActiveFilePath } from '../core/active-file.js';
 export const AhkActiveFileArgsSchema = z.object({
     action: z.enum(['get', 'set']).default('get'),
     filePath: z.string().optional()
 });
 export const ahkActiveFileToolDefinition = {
     name: 'ahk_active_file',
-    description: 'Get or set the active AHK file path used as a default when invoking tools.',
+    description: `Ahk active file
+Get or set the active AHK file path used as a default when invoking tools.`,
     inputSchema: {
         type: 'object',
         properties: {
@@ -22,19 +24,22 @@ export class AhkActiveFileTool {
             const { action, filePath } = AhkActiveFileArgsSchema.parse(args || {});
             if (action === 'get') {
                 const cfg = loadConfig();
-                return { content: [{ type: 'text', text: JSON.stringify({ activeFile: cfg.activeFile || null }, null, 2) }] };
+                const current = getActiveFilePath();
+                return { content: [{ type: 'text', text: JSON.stringify({ activeFile: current || null, persisted: cfg.activeFile || null }, null, 2) }] };
             }
-            const cfg = loadConfig();
             if (!filePath) {
                 throw new Error('filePath is required for set action');
             }
-            cfg.activeFile = normalizeDir(filePath);
-            saveConfig(cfg);
-            return { content: [{ type: 'text', text: 'Active file updated.' }, { type: 'text', text: JSON.stringify({ activeFile: cfg.activeFile }, null, 2) }] };
+            const setSuccess = setActiveFilePath(filePath);
+            if (!setSuccess) {
+                throw new Error(`Failed to set active file: ${filePath}`);
+            }
+            const updated = loadConfig();
+            return { content: [{ type: 'text', text: 'Active file updated.' }, { type: 'text', text: JSON.stringify({ activeFile: updated.activeFile || null }, null, 2) }] };
         }
         catch (error) {
             logger.error('Error in ahk_active_file tool:', error);
-            return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+            return { content: [{ type: 'text', text: `❌ Error: ${error instanceof Error ? error.message : String(error)}` }] };
         }
     }
 }

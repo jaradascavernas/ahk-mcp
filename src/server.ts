@@ -12,28 +12,32 @@ import {
 import { initializeDataLoader, getAhkIndex } from './core/loader.js';
 import logger from './logger.js';
 
+import { logDebugEvent, logDebugError } from './debug-journal.js';
 // Import tool classes and definitions
-import { AhkDiagnosticsTool, ahkDiagnosticsToolDefinition } from './tools/ahk-diagnostics.js';
-import { AhkSummaryTool, ahkSummaryToolDefinition } from './tools/ahk-summary.js';
-import { AhkPromptsTool, ahkPromptsToolDefinition, PROMPTS } from './tools/ahk-prompts.js';
-import { AhkAnalyzeTool, ahkAnalyzeToolDefinition } from './tools/ahk-analyze.js';
-import { AhkContextInjectorTool, ahkContextInjectorToolDefinition } from './tools/ahk-context-injector.js';
-import { AhkSamplingEnhancer, ahkSamplingEnhancerToolDefinition } from './tools/ahk-sampling-enhancer.js';
-import { AhkDebugAgentTool, ahkDebugAgentToolDefinition } from './tools/ahk-debug-agent.js';
-import { AhkDocSearchTool, ahkDocSearchToolDefinition } from './tools/ahk-doc-search.js';
-import { AhkVSCodeProblemsTool, ahkVSCodeProblemsToolDefinition } from './tools/ahk-vscode-problems.js';
-import { AhkRunTool, ahkRunToolDefinition } from './tools/ahk-run.js';
-import { AhkRecentTool, ahkRecentToolDefinition } from './tools/ahk-recent.js';
-import { AhkConfigTool, ahkConfigToolDefinition } from './tools/ahk-config.js';
+import { AhkDiagnosticsTool, ahkDiagnosticsToolDefinition } from './tools/ahk-analyze-diagnostics.js';
+import { AhkSummaryTool, ahkSummaryToolDefinition } from './tools/ahk-analyze-summary.js';
+import { AhkPromptsTool, ahkPromptsToolDefinition, getPromptCatalog } from './tools/ahk-docs-prompts.js';
+import { AhkAnalyzeTool, ahkAnalyzeToolDefinition } from './tools/ahk-analyze-code.js';
+import { AhkContextInjectorTool, ahkContextInjectorToolDefinition } from './tools/ahk-docs-context.js';
+import { AhkSamplingEnhancer, ahkSamplingEnhancerToolDefinition } from './tools/ahk-docs-samples.js';
+import { AhkDebugAgentTool, ahkDebugAgentToolDefinition } from './tools/ahk-run-debug.js';
+import { AhkDocSearchTool, ahkDocSearchToolDefinition } from './tools/ahk-docs-search.js';
+import { AhkVSCodeProblemsTool, ahkVSCodeProblemsToolDefinition } from './tools/ahk-analyze-vscode.js';
+import { AhkRunTool, ahkRunToolDefinition } from './tools/ahk-run-script.js';
+import { AhkRecentTool, ahkRecentToolDefinition } from './tools/ahk-file-recent.js';
+import { AhkConfigTool, ahkConfigToolDefinition } from './tools/ahk-system-config.js';
 import { AhkActiveFileTool, ahkActiveFileToolDefinition } from './tools/ahk-active-file.js';
-import { AhkAutoFileTool, ahkAutoFileToolDefinition } from './tools/ahk-auto-file.js';
-import { AhkProcessRequestTool, ahkProcessRequestToolDefinition } from './tools/ahk-process-request.js';
-import { AhkFileTool, ahkFileToolDefinition } from './tools/ahk-file.js';
-import { AhkEditTool, ahkEditToolDefinition } from './tools/ahk-edit.js';
-import { AhkDiffEditTool, ahkDiffEditToolDefinition } from './tools/ahk-diff-edit.js';
-import { AhkSettingsTool, ahkSettingsToolDefinition } from './tools/ahk-settings.js';
-import { AhkAlphaTool, ahkAlphaToolDefinition } from './tools/ahk-alpha.js';
-import { AhkFileEditorTool, ahkFileEditorToolDefinition } from './tools/ahk-file-editor.js';
+import { AhkLspTool, ahkLspToolDefinition } from './tools/ahk-analyze-lsp.js';
+import { AhkFileViewTool, ahkFileViewToolDefinition } from './tools/ahk-file-view.js';
+import { AhkAutoFileTool, ahkAutoFileToolDefinition } from './tools/ahk-file-detect.js';
+import { AhkProcessRequestTool, ahkProcessRequestToolDefinition } from './tools/ahk-run-process.js';
+import { AhkFileTool, ahkFileToolDefinition } from './tools/ahk-file-active.js';
+import { AhkEditTool, ahkEditToolDefinition } from './tools/ahk-file-edit.js';
+import { AhkDiffEditTool, ahkDiffEditToolDefinition } from './tools/ahk-file-edit-diff.js';
+import { AhkSettingsTool, ahkSettingsToolDefinition } from './tools/ahk-system-settings.js';
+import { AhkAlphaTool, ahkAlphaToolDefinition } from './tools/ahk-system-alpha.js';
+import { AhkFileEditorTool, ahkFileEditorToolDefinition } from './tools/ahk-file-edit-advanced.js';
+import { AhkSmallEditTool, ahkSmallEditToolDefinition } from './tools/ahk-file-edit-small.js';
 import { autoDetect } from './core/active-file.js';
 import { toolSettings } from './core/tool-settings.js';
 
@@ -52,6 +56,8 @@ export class AutoHotkeyMcpServer {
   private ahkRecentToolInstance: AhkRecentTool;
   private ahkConfigToolInstance: AhkConfigTool;
   private ahkActiveFileToolInstance: AhkActiveFileTool;
+  private ahkLspToolInstance: AhkLspTool;
+  private ahkFileViewToolInstance: AhkFileViewTool;
   private ahkAutoFileToolInstance: AhkAutoFileTool;
   private ahkProcessRequestToolInstance: AhkProcessRequestTool;
   private ahkFileToolInstance: AhkFileTool;
@@ -60,6 +66,7 @@ export class AutoHotkeyMcpServer {
   private ahkSettingsToolInstance: AhkSettingsTool;
   private ahkAlphaToolInstance: AhkAlphaTool;
   private ahkFileEditorToolInstance: AhkFileEditorTool;
+  private ahkSmallEditToolInstance: AhkSmallEditTool;
 
   constructor() {
     this.server = new Server(
@@ -91,6 +98,8 @@ export class AutoHotkeyMcpServer {
     this.ahkRecentToolInstance = new AhkRecentTool();
     this.ahkConfigToolInstance = new AhkConfigTool();
     this.ahkActiveFileToolInstance = new AhkActiveFileTool();
+    this.ahkLspToolInstance = new AhkLspTool();
+    this.ahkFileViewToolInstance = new AhkFileViewTool();
     this.ahkAutoFileToolInstance = new AhkAutoFileTool();
     this.ahkProcessRequestToolInstance = new AhkProcessRequestTool();
     this.ahkFileToolInstance = new AhkFileTool();
@@ -99,6 +108,7 @@ export class AutoHotkeyMcpServer {
     this.ahkSettingsToolInstance = new AhkSettingsTool();
     this.ahkAlphaToolInstance = new AhkAlphaTool();
     this.ahkFileEditorToolInstance = new AhkFileEditorTool();
+    this.ahkSmallEditToolInstance = new AhkSmallEditTool();
 
     this.setupToolHandlers();
     this.setupPromptHandlers();
@@ -112,38 +122,87 @@ export class AutoHotkeyMcpServer {
     // List tools handler
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       logger.debug('Listing available AutoHotkey tools');
-      
+
+      // Check if we're in SSE mode (for ChatGPT compatibility)
+      const useSSE = process.argv.includes('--sse') || process.env.PORT;
+      logDebugEvent('tools.list', { status: 'start', message: useSSE ? 'Including SSE-specific tools' : 'Standard tool listing' });
+
+      const standardTools = [
+        ahkFileEditorToolDefinition, // PRIMARY FILE EDITING TOOL - Listed first for priority
+        ahkEditToolDefinition,
+        ahkFileToolDefinition,
+        ahkDiffEditToolDefinition,
+        ahkDiagnosticsToolDefinition,
+        ahkRunToolDefinition,
+        ahkAnalyzeToolDefinition,
+        ahkContextInjectorToolDefinition,
+        ahkSummaryToolDefinition,
+        ahkPromptsToolDefinition,
+        ahkSamplingEnhancerToolDefinition,
+        ahkDebugAgentToolDefinition,
+        ahkDocSearchToolDefinition,
+        ahkVSCodeProblemsToolDefinition,
+        ahkRecentToolDefinition,
+        ahkConfigToolDefinition,
+        ahkActiveFileToolDefinition,
+        ahkLspToolDefinition,
+        ahkFileViewToolDefinition,
+        ahkAutoFileToolDefinition,
+        ahkProcessRequestToolDefinition,
+        ahkSettingsToolDefinition,
+        ahkSmallEditToolDefinition,
+        ahkAlphaToolDefinition,
+      ];
+
+      // Add ChatGPT-compatible tools when in SSE mode
+      const chatGPTTools = useSSE ? [
+        {
+          name: 'search',
+          description: 'Search AutoHotkey v2 documentation and code examples',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              query: {
+                type: 'string',
+                description: 'Search query for AutoHotkey documentation'
+              }
+            },
+            required: ['query']
+          }
+        },
+        {
+          name: 'fetch',
+          description: 'Fetch detailed AutoHotkey documentation for a specific item',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              id: {
+                type: 'string',
+                description: 'Unique identifier for the AutoHotkey documentation item'
+              }
+            },
+            required: ['id']
+          }
+        }
+      ] : [];
+      const tools = [...standardTools, ...chatGPTTools];
+      logDebugEvent('tools.list', { status: 'success', message: `Returned ${tools.length} tools`, details: { mode: useSSE ? 'sse' : 'stdio' } });
+
       return {
-        tools: [
-          ahkFileEditorToolDefinition, // PRIMARY FILE EDITING TOOL - Listed first for priority
-          ahkEditToolDefinition,
-          ahkFileToolDefinition,
-          ahkDiffEditToolDefinition,
-          ahkDiagnosticsToolDefinition,
-          ahkRunToolDefinition,
-          ahkAnalyzeToolDefinition,
-          ahkContextInjectorToolDefinition,
-          ahkSummaryToolDefinition,
-          ahkPromptsToolDefinition,
-          ahkSamplingEnhancerToolDefinition,
-          ahkDebugAgentToolDefinition,
-          ahkDocSearchToolDefinition,
-          ahkVSCodeProblemsToolDefinition,
-          ahkRecentToolDefinition,
-          ahkConfigToolDefinition,
-          ahkActiveFileToolDefinition,
-          ahkAutoFileToolDefinition,
-          ahkProcessRequestToolDefinition,
-          ahkSettingsToolDefinition,
-          ahkAlphaToolDefinition,
-        ],
+        tools,
       };
     });
 
     // Call tool handler
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
-      
+      const startTime = Date.now();
+
+      logDebugEvent('tools.call', { status: 'start', message: name, details: {
+        hasArgs: Boolean(args && typeof args === 'object' && Object.keys(args as Record<string, unknown>).length),
+        argCount: args && typeof args === 'object' ? Object.keys(args as Record<string, unknown>).length : 0,
+        toolType: name.split('_')[1] || 'unknown'
+      } });
       logger.info(`🔧 Tool called: ${name}`);
       logger.debug(`🔧 Tool arguments:`, args);
       
@@ -158,76 +217,177 @@ export class AutoHotkeyMcpServer {
       }
 
       try {
+        let result: any;
+
         switch (name) {
-          case 'ahk_file_editor':
-            return await this.ahkFileEditorToolInstance.execute(args as any);
+          case 'ahk_file_edit_advanced':
+            result = await this.ahkFileEditorToolInstance.execute(args as any);
+            break;
 
           case 'ahk_diagnostics':
-            return await this.ahkDiagnosticsToolInstance.execute(args as any);
+            result = await this.ahkDiagnosticsToolInstance.execute(args as any);
+            break;
 
           case 'ahk_summary':
-            return await this.ahkSummaryToolInstance.execute();
+            result = await this.ahkSummaryToolInstance.execute();
+            break;
 
           case 'ahk_prompts':
-            return await this.ahkPromptsToolInstance.execute();
+            result = await this.ahkPromptsToolInstance.execute();
+            break;
 
           case 'ahk_analyze':
-            return await this.ahkAnalyzeToolInstance.execute(args as any);
+            result = await this.ahkAnalyzeToolInstance.execute(args as any);
+            break;
 
           case 'ahk_context_injector':
-            return await this.ahkContextInjectorToolInstance.execute(args as any);
+            result = await this.ahkContextInjectorToolInstance.execute(args as any);
+            break;
 
           case 'ahk_sampling_enhancer':
-            return await this.ahkSamplingEnhancerToolInstance.execute(args as any);
+            result = await this.ahkSamplingEnhancerToolInstance.execute(args as any);
+            break;
 
           case 'ahk_debug_agent':
-            return await this.ahkDebugAgentToolInstance.execute(args as any);
+            result = await this.ahkDebugAgentToolInstance.execute(args as any);
+            break;
 
           case 'ahk_doc_search':
-            return await this.ahkDocSearchToolInstance.execute(args as any);
+            result = await this.ahkDocSearchToolInstance.execute(args as any);
+            break;
 
           case 'ahk_run':
-            return await this.ahkRunToolInstance.execute(args as any);
+            result = await this.ahkRunToolInstance.execute(args as any);
+            break;
 
           case 'ahk_vscode_problems':
-            return await this.ahkVSCodeProblemsToolInstance.execute(args as any);
+            result = await this.ahkVSCodeProblemsToolInstance.execute(args as any);
+            break;
 
-          case 'ahk_recent_scripts':
-            return await this.ahkRecentToolInstance.execute(args as any);
+          case 'ahk_file_recent':
+            result = await this.ahkRecentToolInstance.execute(args as any);
+            break;
 
           case 'ahk_config':
-            return await this.ahkConfigToolInstance.execute(args as any);
+            result = await this.ahkConfigToolInstance.execute(args as any);
+            break;
 
           case 'ahk_active_file':
-            return await this.ahkActiveFileToolInstance.execute(args as any);
+            result = await this.ahkActiveFileToolInstance.execute(args as any);
+            break;
 
-          case 'ahk_auto_file':
-            return await this.ahkAutoFileToolInstance.execute(args as any);
+          case 'ahk_lsp':
+            result = await this.ahkLspToolInstance.execute(args as any);
+            break;
+
+          case 'ahk_file_view':
+            result = await this.ahkFileViewToolInstance.execute(args as any);
+            break;
+
+          case 'ahk_file_detect':
+            result = await this.ahkAutoFileToolInstance.execute(args as any);
+            break;
 
           case 'ahk_process_request':
-            return await this.ahkProcessRequestToolInstance.execute(args as any);
+            result = await this.ahkProcessRequestToolInstance.execute(args as any);
+            break;
 
-          case 'ahk_file':
-            return await this.ahkFileToolInstance.execute(args as any);
+          case 'ahk_file_active':
+            result = await this.ahkFileToolInstance.execute(args as any);
+            break;
 
-          case 'ahk_edit':
-            return await this.ahkEditToolInstance.execute(args as any);
+          case 'ahk_file_edit':
+            result = await this.ahkEditToolInstance.execute(args as any);
+            break;
 
-          case 'ahk_diff_edit':
-            return await this.ahkDiffEditToolInstance.execute(args as any);
+          case 'ahk_file_edit_diff':
+            result = await this.ahkDiffEditToolInstance.execute(args as any);
+            break;
 
           case 'ahk_settings':
-            return await this.ahkSettingsToolInstance.execute(args as any);
+            result = await this.ahkSettingsToolInstance.execute(args as any);
+            break;
+
+          case 'ahk_file_edit_small':
+            result = await this.ahkSmallEditToolInstance.execute(args as any);
+            break;
 
           case 'ahk_alpha':
-            return await this.ahkAlphaToolInstance.execute(args as any);
+            result = await this.ahkAlphaToolInstance.execute(args as any);
+            break;
+
+          // ChatGPT-compatible tools (SSE mode only)
+          case 'search':
+            result = await this.ahkDocSearchToolInstance.execute({
+              query: (args as any).query,
+              category: 'auto',
+              limit: 10
+            });
+            break;
+
+          case 'fetch': {
+            const fetchResult = await this.ahkDocSearchToolInstance.execute({
+              query: (args as any).id,
+              category: 'auto',
+              limit: 5
+            });
+
+            if (fetchResult.content && fetchResult.content.length > 0) {
+              const searchData = JSON.parse(fetchResult.content[0].text);
+              const results = searchData.results || [];
+              const firstResult = results.find((r: any) => r.id === (args as any).id) || results[0];
+
+              if (firstResult) {
+                const docResponse = {
+                  id: firstResult.id,
+                  title: firstResult.title,
+                  text: firstResult.description || firstResult.summary || 'AutoHotkey documentation item',
+                  url: firstResult.url,
+                  metadata: { source: 'autohotkey_docs', version: 'v2' }
+                };
+
+                result = {
+                  content: [
+                    {
+                      type: 'text',
+                      text: JSON.stringify(docResponse)
+                    }
+                  ]
+                };
+                break;
+              }
+            }
+
+            result = {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    id: (args as any).id,
+                    title: 'AutoHotkey Documentation Item',
+                    text: 'Documentation not found for this item. Try searching for related terms.',
+                    url: `https://www.autohotkey.com/docs/v2/search.htm?q=${(args as any).id}`,
+                    metadata: { source: 'autohotkey_docs', version: 'v2' }
+                  })
+                }
+              ]
+            };
+            break;
+          }
 
           default:
             logger.error(`Unknown tool: ${name}`);
             throw new Error(`Unknown tool: ${name}`);
         }
+
+        logDebugEvent('tools.call', { status: 'success', message: name, details: {
+          duration: Date.now() - startTime,
+          hasResult: Boolean(result && result.content && result.content.length > 0)
+        } });
+        return result;
       } catch (error) {
         logger.error(`Error executing tool ${name}:`, error);
+        logDebugError('tools.call', error, { details: { tool: name } });
         throw error;
       }
     });
@@ -240,14 +400,27 @@ export class AutoHotkeyMcpServer {
     // List prompts handler
     this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
       logger.debug('Listing available AutoHotkey prompts');
-      
-      return {
-        prompts: PROMPTS.map((prompt, index) => ({
-          name: this.createPromptName(prompt.title),
-          description: `AutoHotkey v2: ${prompt.title}`,
+      logDebugEvent('prompts.list', { status: 'start', message: 'Gathering prompt catalog' });
+      const prompts = await getPromptCatalog();
+
+      const promptList = prompts.map((prompt) => {
+        const description = prompt.source === 'module' && prompt.module
+          ? `AutoHotkey v2 module prompt from ${prompt.module}`
+          : `AutoHotkey v2: ${prompt.title}`;
+
+        return {
+          name: this.createPromptName(prompt.slug ?? prompt.title),
+          description,
           arguments: []
-        }))
+        };
+      });
+
+      logDebugEvent('prompts.list', { status: 'success', message: `Returned ${promptList.length} prompts` });
+
+      return {
+        prompts: promptList,
       };
+
     });
 
     // Get prompt handler  
@@ -255,13 +428,17 @@ export class AutoHotkeyMcpServer {
       const { name } = request.params;
       
       logger.info(`Getting prompt: ${name}`);
+      logDebugEvent('prompts.get', { status: 'start', message: name });
 
-      // Find prompt by matching the created name
-      const prompt = PROMPTS.find(p => this.createPromptName(p.title) === name);
+      const prompts = await getPromptCatalog();
+      const prompt = prompts.find((p) => this.createPromptName(p.slug ?? p.title) === name);
       
       if (!prompt) {
+        logDebugEvent('prompts.get', { status: 'error', message: `Prompt not found: ${name}` });
         throw new Error(`Prompt not found: ${name}`);
       }
+
+      logDebugEvent('prompts.get', { status: 'success', message: name });
 
       return {
         description: prompt.title,
@@ -284,10 +461,29 @@ export class AutoHotkeyMcpServer {
   private createPromptName(title: string): string {
     return title
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+      .replace(/[^a-z0-9\s-]/g, '') // Remove unsupported characters
       .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-{2,}/g, '-') // Collapse multiple hyphens
       .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
   }
+  private normalizeResourceUri(uri: string): string {
+    if (!uri) {
+      return uri;
+    }
+
+    const colonIndex = uri.indexOf(':');
+    const schemeIndex = uri.indexOf('://');
+
+    if (colonIndex > -1 && (schemeIndex === -1 || colonIndex < schemeIndex)) {
+      const possibleUri = uri.slice(colonIndex + 1);
+      if (possibleUri.startsWith('ahk://')) {
+        return possibleUri;
+      }
+    }
+
+    return uri;
+  }
+
 
   /**
    * Setup MCP resource handlers for automatic context injection
@@ -296,88 +492,100 @@ export class AutoHotkeyMcpServer {
     // List resources handler
     this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
       logger.debug('Listing available AutoHotkey resources');
-      
+      logDebugEvent('resources.list', { status: 'start', message: 'Enumerating exposed resources' });
+
+      const resources = [
+        {
+          uri: 'ahk://context/auto',
+          name: 'AutoHotkey Auto-Context',
+          description: 'Automatically provides relevant AutoHotkey documentation based on detected keywords',
+          mimeType: 'text/markdown'
+        },
+        {
+          uri: 'ahk://docs/functions',
+          name: 'AutoHotkey Functions Reference',
+          description: 'Complete reference of AutoHotkey v2 built-in functions',
+          mimeType: 'application/json'
+        },
+        {
+          uri: 'ahk://docs/variables',
+          name: 'AutoHotkey Variables Reference', 
+          description: 'Complete reference of AutoHotkey v2 built-in variables',
+          mimeType: 'application/json'
+        },
+        {
+          uri: 'ahk://docs/classes',
+          name: 'AutoHotkey Classes Reference',
+          description: 'Complete reference of AutoHotkey v2 built-in classes',
+          mimeType: 'application/json'
+        },
+        {
+          uri: 'ahk://docs/methods',
+          name: 'AutoHotkey Methods Reference',
+          description: 'Complete reference of AutoHotkey v2 built-in methods',
+          mimeType: 'application/json'
+        },
+        {
+          uri: 'ahk://templates/file-system-watcher',
+          name: 'File System Watcher Template',
+          description: 'AutoHotkey v2 script template for monitoring file system changes',
+          mimeType: 'text/plain'
+        },
+        {
+          uri: 'ahk://templates/clipboard-manager',
+          name: 'Clipboard Manager Template',
+          description: 'AutoHotkey v2 script template for clipboard management',
+          mimeType: 'text/plain'
+        },
+        {
+          uri: 'ahk://templates/cpu-monitor',
+          name: 'CPU Monitor Template',
+          description: 'AutoHotkey v2 script template for system monitoring',
+          mimeType: 'text/plain'
+        },
+        {
+          uri: 'ahk://templates/hotkey-toggle',
+          name: 'Hotkey Toggle Template',
+          description: 'AutoHotkey v2 script template for hotkey management',
+          mimeType: 'text/plain'
+        },
+        {
+          uri: 'ahk://system/clipboard',
+          name: 'Live Clipboard Content',
+          description: 'Real-time clipboard content (read-only)',
+          mimeType: 'text/plain'
+        },
+        {
+          uri: 'ahk://system/info',
+          name: 'System Information',
+          description: 'Current system information and AutoHotkey environment',
+          mimeType: 'application/json'
+        }
+        ];
+
+      logDebugEvent('resources.list', { status: 'success', message: `Returned ${resources.length} resources` });
+
       return {
-        resources: [
-          {
-            uri: 'ahk://context/auto',
-            name: 'AutoHotkey Auto-Context',
-            description: 'Automatically provides relevant AutoHotkey documentation based on detected keywords',
-            mimeType: 'text/markdown'
-          },
-          {
-            uri: 'ahk://docs/functions',
-            name: 'AutoHotkey Functions Reference',
-            description: 'Complete reference of AutoHotkey v2 built-in functions',
-            mimeType: 'application/json'
-          },
-          {
-            uri: 'ahk://docs/variables',
-            name: 'AutoHotkey Variables Reference', 
-            description: 'Complete reference of AutoHotkey v2 built-in variables',
-            mimeType: 'application/json'
-          },
-          {
-            uri: 'ahk://docs/classes',
-            name: 'AutoHotkey Classes Reference',
-            description: 'Complete reference of AutoHotkey v2 built-in classes',
-            mimeType: 'application/json'
-          },
-          {
-            uri: 'ahk://docs/methods',
-            name: 'AutoHotkey Methods Reference',
-            description: 'Complete reference of AutoHotkey v2 built-in methods',
-            mimeType: 'application/json'
-          },
-          {
-            uri: 'ahk://templates/file-system-watcher',
-            name: 'File System Watcher Template',
-            description: 'AutoHotkey v2 script template for monitoring file system changes',
-            mimeType: 'text/plain'
-          },
-          {
-            uri: 'ahk://templates/clipboard-manager',
-            name: 'Clipboard Manager Template',
-            description: 'AutoHotkey v2 script template for clipboard management',
-            mimeType: 'text/plain'
-          },
-          {
-            uri: 'ahk://templates/cpu-monitor',
-            name: 'CPU Monitor Template',
-            description: 'AutoHotkey v2 script template for system monitoring',
-            mimeType: 'text/plain'
-          },
-          {
-            uri: 'ahk://templates/hotkey-toggle',
-            name: 'Hotkey Toggle Template',
-            description: 'AutoHotkey v2 script template for hotkey management',
-            mimeType: 'text/plain'
-          },
-          {
-            uri: 'ahk://system/clipboard',
-            name: 'Live Clipboard Content',
-            description: 'Real-time clipboard content (read-only)',
-            mimeType: 'text/plain'
-          },
-          {
-            uri: 'ahk://system/info',
-            name: 'System Information',
-            description: 'Current system information and AutoHotkey environment',
-            mimeType: 'application/json'
-          }
-        ]
+        resources,
       };
     });
 
     // Read resource handler
     this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const { uri } = request.params;
-      
-      logger.info(`Reading resource: ${uri}`);
+      const normalizedUri = this.normalizeResourceUri(uri);
+      const baseDetails = uri !== normalizedUri ? { requested: uri, normalized: normalizedUri } : undefined;
+      const mergeDetails = (details?: Record<string, unknown>): Record<string, unknown> | undefined => {
+        return baseDetails ? { ...baseDetails, ...(details ?? {}) } : details;
+      };
 
-      if (uri === 'ahk://context/auto') {
+      logger.info(`Reading resource: ${normalizedUri}`);
+      logDebugEvent('resources.read', { status: 'start', message: normalizedUri, details: mergeDetails() });
+
+      if (normalizedUri === 'ahk://context/auto') {
         // This would normally be triggered by analyzing user input
         // For now, return a placeholder
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'auto-context' }) });
         return {
           contents: [
             {
@@ -389,8 +597,9 @@ export class AutoHotkeyMcpServer {
         };
       }
 
-      if (uri === 'ahk://docs/functions') {
+      if (normalizedUri === 'ahk://docs/functions') {
         const ahkIndex = getAhkIndex();
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'functions' }) });
         return {
           contents: [
             {
@@ -402,8 +611,9 @@ export class AutoHotkeyMcpServer {
         };
       }
 
-      if (uri === 'ahk://docs/variables') {
+      if (normalizedUri === 'ahk://docs/variables') {
         const ahkIndex = getAhkIndex();
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'variables' }) });
         return {
           contents: [
             {
@@ -415,8 +625,9 @@ export class AutoHotkeyMcpServer {
         };
       }
 
-      if (uri === 'ahk://docs/classes') {
+      if (normalizedUri === 'ahk://docs/classes') {
         const ahkIndex = getAhkIndex();
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'classes' }) });
         return {
           contents: [
             {
@@ -428,8 +639,9 @@ export class AutoHotkeyMcpServer {
         };
       }
 
-      if (uri === 'ahk://docs/methods') {
+      if (normalizedUri === 'ahk://docs/methods') {
         const ahkIndex = getAhkIndex();
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'methods' }) });
         return {
           contents: [
             {
@@ -442,7 +654,8 @@ export class AutoHotkeyMcpServer {
       }
 
       // Script templates
-      if (uri === 'ahk://templates/file-system-watcher') {
+      if (normalizedUri === 'ahk://templates/file-system-watcher') {
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'template', name: 'file-system-watcher' }) });
         return {
           contents: [
             {
@@ -510,7 +723,8 @@ class FileSystemWatcher {
         };
       }
 
-      if (uri === 'ahk://templates/clipboard-manager') {
+      if (normalizedUri === 'ahk://templates/clipboard-manager') {
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'template', name: 'clipboard-manager' }) });
         return {
           contents: [
             {
@@ -581,7 +795,8 @@ clipManager := ClipboardManager()
         };
       }
 
-      if (uri === 'ahk://templates/cpu-monitor') {
+      if (normalizedUri === 'ahk://templates/cpu-monitor') {
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'template', name: 'cpu-monitor' }) });
         return {
           contents: [
             {
@@ -641,7 +856,8 @@ cpuMonitor := CPUMonitor()
         };
       }
 
-      if (uri === 'ahk://templates/hotkey-toggle') {
+      if (normalizedUri === 'ahk://templates/hotkey-toggle') {
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'template', name: 'hotkey-toggle' }) });
         return {
           contents: [
             {
@@ -743,7 +959,8 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
         };
       }
 
-      if (uri === 'ahk://system/clipboard') {
+      if (normalizedUri === 'ahk://system/clipboard') {
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'system' }) });
         return {
           contents: [
             {
@@ -755,7 +972,7 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
         };
       }
 
-      if (uri === 'ahk://system/info') {
+      if (normalizedUri === 'ahk://system/info') {
         const systemInfo = {
           autohotkeyVersion: "v2.0+",
           operatingSystem: "Windows",
@@ -771,6 +988,7 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
           uptime: process.uptime()
         };
         
+        logDebugEvent('resources.read', { status: 'success', message: normalizedUri, details: mergeDetails({ kind: 'system-info' }) });
         return {
           contents: [
             {
@@ -782,6 +1000,7 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
         };
       }
 
+      logDebugEvent('resources.read', { status: 'error', message: `Resource not found: ${uri}` });
       throw new Error(`Resource not found: ${uri}`);
     });
   }
@@ -793,13 +1012,16 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
   async initialize(): Promise<void> {
     try {
       logger.info('Initializing AutoHotkey MCP Server...');
-      
+      logDebugEvent('server.initialize', { status: 'start', message: 'Loading AutoHotkey documentation' });
+
       // Load AutoHotkey documentation data
       await initializeDataLoader();
-      
+
       logger.info('AutoHotkey MCP Server initialized successfully');
+      logDebugEvent('server.initialize', { status: 'success', message: 'Documentation cache ready' });
     } catch (error) {
       logger.error('Failed to initialize AutoHotkey MCP Server:', error);
+      logDebugError('server.initialize', error);
       throw error;
     }
   }
@@ -817,48 +1039,110 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
       if (useSSE) {
         const port = parseInt(process.env.PORT || '3000');
 
+        logDebugEvent('server.start', { status: 'start', message: `Launching SSE transport on port ${port}` });
+
         // Import express for SSE transport
         const express = await import('express');
         const app = express.default();
 
         app.use(express.default.json());
 
+        // Store active transports by session
+        const activeTransports = new Map();
+
         // Set up SSE endpoint
         app.get('/sse', (req, res) => {
-          // Create SSE transport for this specific response
-          const transport = new SSEServerTransport('/message', res);
+          try {
+            // Create SSE transport for this specific response
+            const transport = new SSEServerTransport('/message', res);
 
-          // Connect MCP server to this transport
-          this.server.connect(transport).catch(error => {
-            logger.error('Failed to connect SSE transport:', error);
-            res.status(500).end();
-          });
+            // Store the transport for handling POST messages
+            const sessionId = transport.sessionId;
+            activeTransports.set(sessionId, transport);
+            logDebugEvent('transport.sse', { status: 'start', message: `Session ${sessionId} connected` });
 
-          // Start the SSE connection
-          transport.start().catch(error => {
-            logger.error('Failed to start SSE transport:', error);
+            // Connect MCP server to this transport
+            this.server.connect(transport).then(() => {
+              logger.info(`SSE transport connected with session ID: ${sessionId}`);
+              logDebugEvent('transport.sse', { status: 'info', message: `Session ${sessionId} handshake established` });
+            }).catch(error => {
+              logger.error('Failed to connect SSE transport:', error);
+              logDebugError('transport.sse', error, { details: { sessionId, phase: 'connect' } });
+              res.status(500).end();
+            });
+
+            // Start the SSE connection
+            transport.start().then(() => {
+              logger.info('SSE transport started successfully');
+              logDebugEvent('transport.sse', { status: 'success', message: `Session ${sessionId} streaming` });
+            }).catch(error => {
+              logger.error('Failed to start SSE transport:', error);
+              logDebugError('transport.sse', error, { details: { sessionId, phase: 'start' } });
+              res.status(500).end();
+            });
+
+            // Clean up on close
+            req.on('close', () => {
+              activeTransports.delete(sessionId);
+              logger.info(`SSE connection closed for session: ${sessionId}`);
+              logDebugEvent('transport.sse', { status: 'info', message: `Session ${sessionId} closed` });
+            });
+
+          } catch (error) {
+            logger.error('Error setting up SSE endpoint:', error);
+            logDebugError('transport.sse', error, { details: { phase: 'setup' } });
             res.status(500).end();
-          });
+          }
         });
 
         // Handle POST messages to /message endpoint
         app.post('/message', async (req, res) => {
-          // The SSE transport will handle this via its handlePostMessage method
-          // This endpoint needs to be handled by the active transport
-          logger.debug('Received POST message');
-          res.status(200).json({ received: true });
+          try {
+            logger.debug('Received POST message:', req.body);
+
+            // Try to find the appropriate transport and let it handle the message
+            for (const [sessionId, transport] of activeTransports.entries()) {
+              try {
+                await transport.handlePostMessage(req, res);
+                return; // Message handled successfully
+              } catch (error) {
+                logger.debug(`Transport ${sessionId} couldn't handle message:`, error);
+                continue; // Try next transport
+              }
+            }
+
+            // If no transport handled it, return an error
+            logger.error('No active transport could handle the POST message');
+            logDebugEvent('transport.sse', { status: 'error', message: 'POST message received without an active transport' });
+            res.status(500).json({
+              jsonrpc: '2.0',
+              error: { code: -32603, message: 'No active transport available' }
+            });
+
+          } catch (error) {
+            logger.error('Error handling POST message:', error);
+            logDebugError('transport.sse', error, { details: { phase: 'post' } });
+            res.status(500).json({
+              jsonrpc: '2.0',
+              error: { code: -32603, message: 'Internal server error' }
+            });
+          }
         });
 
         // Start express server
         app.listen(port, () => {
           logger.info(`AutoHotkey MCP Server started with SSE transport on port ${port}`);
           logger.info(`ChatGPT URL: http://localhost:${port}/sse`);
+          logDebugEvent('server.start', { status: 'success', message: `SSE transport listening on port ${port}` });
         });
       } else {
+        logDebugEvent('server.start', { status: 'start', message: 'Launching stdio transport (Claude Desktop)' });
+
         // Connect to stdio (for Claude Desktop)
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
         logger.info('AutoHotkey MCP Server started and connected to stdio');
+        logDebugEvent('server.start', { status: 'success', message: 'Stdio transport ready (Claude Desktop)' });
       }
 
       // Handle process termination gracefully
@@ -885,3 +1169,4 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
     return this.server;
   }
 } 
+

@@ -14,7 +14,7 @@
 ---
 
 > [!IMPORTANT]
-> UPDATED 9/14/25: Fixed ESLint configuration and resolved critical code quality issues. Added advanced file management tools, alpha versioning system, and expanded the MCP server with specialized AutoHotkey development tools.
+> UPDATED 9/23/25: Enhanced script execution with window detection and state validation. The `ahk_run` tool now detects when AutoHotkey scripts launched by monitoring for new windows. Added debug logging for MCP tool calls and improve file path process. Fixed tool naming consistency across the entire codebase.
 > This readme was not created using AI, so it's worth reading lol
 
 ## Overview
@@ -23,7 +23,8 @@
 
 ## Recent Updates
 
-**Version 2.1.0** includes expanded file management capabilities:
+**Version 2.1.1** includes expanded file management capabilities:
+- Script run and monitor tool
 - Advanced file editing tools with diff-based patches
 - Alpha versioning system for iterative development
 - Enhanced active file detection and management
@@ -124,35 +125,68 @@ Before installing the AutoHotkey v2 MCP Server, ensure you have:
 
 ### Claude Desktop Configuration
 
-Add the server to your Claude Desktop configuration:
+Add the server to your Claude Desktop configuration file (`claude_desktop_config.json`):
 
+**Windows Configuration:**
 ```json
 {
   "mcpServers": {
-    "ahk-mcp": {
-      "command": "node",
-      "args": ["path/to/ahk-mcp/dist/index.js"],
-      "env": {}
+    "ahk": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\Users\\YourUsername\\path\\to\\ahk-mcp\\dist\\index.js"
+      ],
+      "env": {
+        "NODE_ENV": "production",
+        "AHK_MCP_LOG_LEVEL": "warn"
+      }
     }
   }
 }
 ```
 
+**Debug Configuration (for troubleshooting):**
+```json
+{
+  "mcpServers": {
+    "ahk": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\Users\\YourUsername\\path\\to\\ahk-mcp\\dist\\index.js"
+      ],
+      "env": {
+        "NODE_ENV": "production",
+        "AHK_MCP_LOG_LEVEL": "debug",
+        "AHK_MCP_DATA_MODE": "full"
+      }
+    }
+  }
+}
+```
+
+**Important Notes:**
+- Replace `YourUsername` with your actual Windows username
+- Replace `path\\to\\ahk-mcp` with the actual path to your installation
+- Use absolute paths for both Node.js and the script
+- Use double backslashes (`\\`) in Windows paths for proper JSON escaping
+- Set `AHK_MCP_LOG_LEVEL` to `debug` for troubleshooting, `warn` for normal use
+
 ## MCP Tools
 
 ### Core Analysis Tools
 
-#### `ahk_complete`
-Provides intelligent code completion suggestions based on code position and context.
+#### `ahk_run`
+Execute AutoHotkey scripts with window detection and timeout handling.
 
 ```typescript
 {
-  code: string,           // AutoHotkey v2 code
-  position: {             // Code position
-    line: number,         // Zero-based line number
-    character: number     // Zero-based character position
-  },
-  context?: string        // Optional: 'function' | 'variable' | 'class' | 'auto'
+  mode: 'run' | 'test',                    // Execution mode
+  filePath?: string,                       // Path to .ahk file (or use content)
+  content?: string,                        // Script content to execute
+  wait?: boolean,                          // Wait for completion (default: true)
+  detectWindow?: boolean,                  // Enable window detection (default: false)
+  windowDetectTimeout?: number,            // Window detection timeout in ms
+  ahkPath?: string                         // Custom AutoHotkey executable path
 }
 ```
 
