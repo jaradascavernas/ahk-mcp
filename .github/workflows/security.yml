@@ -181,4 +181,4 @@ jobs:
             
             *This PR was created automatically by the dependency update workflow.*
           branch: chore/update-dependencies
-          delete-branch: true
+       
