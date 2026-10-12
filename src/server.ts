@@ -43,7 +43,8 @@ import { ToolRegistry, registerToolHandlers } from './tooling/registry.js';
 import { createLegacyToolDefinitions } from './tooling/legacy-tools.js';
 import { resolveToolSurface } from './tooling/toolsets.js';
 import { requestEra, supportsFormElicitation } from './server/era.js';
-import { envConfig } from './core/env-config.js';
+import { envConfig, getEnvConfig } from './core/env-config.js';
+import { initializeProductionRuntimeConfig } from './core/config.js';
 import { createErrorResponse } from './utils/response-helpers.js';
 import { TaskManager } from './core/task-manager.js';
 
@@ -519,7 +520,7 @@ export class AutoHotkeyMcpServer {
       this,
       (name, args, ctx) =>
         this.prepareToolArguments(ctx.server, name, args, ctx.signal, ctx.request),
-      envConfig.useSSEMode()
+      getEnvConfig().AHK_MCP_CHATGPT_COMPAT
     );
   }
 
@@ -2047,6 +2048,7 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
   async initialize(): Promise<void> {
     try {
       logger.info('Initializing AutoHotkey MCP Server...');
+      await initializeProductionRuntimeConfig();
       logDebugEvent('server.initialize', {
         status: 'start',
         message: 'Loading AutoHotkey documentation',

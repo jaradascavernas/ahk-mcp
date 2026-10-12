@@ -3,6 +3,12 @@ import path from 'node:path';
 import os from 'node:os';
 import logger from '../logger.js';
 import { getCurrentRootDirectories } from './mcp-request-context.js';
+import { getEnvConfig, getEnvParseResult } from './env-config.js';
+import {
+  getOperatorConfigPath,
+  loadOperatorConfig,
+  type OperatorConfig,
+} from './operator-config.js';
 
 export interface AhkMcpConfig {
   scriptDir?: string;
@@ -76,6 +82,47 @@ const LOCAL_AHK_BIN_RELATIVE_CANDIDATES = [
 export interface AutoHotkeyPathSearchOptions {
   cwd?: string;
   includeConfiguredPath?: boolean;
+  kind?: 'script' | 'fork';
+}
+
+let productionRuntimeConfig:
+  | { path: string; config: Pick<OperatorConfig, 'ahkPath' | 'forkAhkPath' | 'thqbyLspPath'> }
+  | undefined;
+
+/** Bridge operator-owned paths to synchronous legacy handlers before serving requests. */
+export async function initializeProductionRuntimeConfig(): Promise<void> {
+  const snapshot = await loadOperatorConfig();
+  productionRuntimeConfig = { path: snapshot.path, config: snapshot.config };
+}
+
+function operatorRuntimePaths(): Pick<OperatorConfig, 'ahkPath' | 'forkAhkPath' | 'thqbyLspPath'> {
+  // A reset or a different config directory must not reuse another operator's paths.
+  return productionRuntimeConfig?.path === getOperatorConfigPath()
+    ? productionRuntimeConfig.config
+    : {};
+}
+
+export function getConfiguredThqbyPath(): string | undefined {
+  return getEnvConfig().AHK_MCP_THQBY_PATH ?? operatorRuntimePaths().thqbyLspPath;
+}
+
+function configuredAutoHotkeyPath(
+  options: AutoHotkeyPathSearchOptions
+): { executable: string; setting: string } | undefined {
+  const { config: env, sources } = getEnvParseResult();
+  const fromFile = options.includeConfiguredPath === false ? {} : operatorRuntimePaths();
+  const kinds = options.kind === 'fork' ? (['fork', 'script'] as const) : (['script'] as const);
+  for (const kind of kinds) {
+    const variable = kind === 'fork' ? 'AHK_MCP_FORK_AHK_PATH' : 'AHK_MCP_AHK_PATH';
+    const key = kind === 'fork' ? 'forkAhkPath' : 'ahkPath';
+    if (env[variable]) {
+      return { executable: env[variable], setting: sources[variable] ?? variable };
+    }
+    if (fromFile[key]) {
+      return { executable: fromFile[key], setting: `operator-config.json ${key}` };
+    }
+  }
+  return undefined;
 }
 
 function getConfigDir(): string {
@@ -217,17 +264,26 @@ export function getAutoHotkeyExecutableCandidates(
   const candidates: string[] = [];
   const cwd = normalizeDir(options.cwd) || process.cwd();
   const includeConfiguredPath = options.includeConfiguredPath ?? true;
+  const env = getEnvConfig();
+  const configured = configuredAutoHotkeyPath(options);
+  if (configured) {
+    if (!path.isAbsolute(configured.executable) && !env.AHK_MCP_ALLOW_LOCAL_AHK) {
+      throw new Error(
+        `${configured.setting} must be an absolute path; relative executables require AHK_MCP_ALLOW_LOCAL_AHK=true.`
+      );
+    }
+    return [path.resolve(cwd, configured.executable)];
+  }
   const cfg = includeConfiguredPath ? loadConfig() : undefined;
-
-  pushUniqueFile(candidates, process.env.AHK_PATH_WIN);
-  pushUniqueFile(candidates, process.env.AHK_PATH);
 
   if (cfg?.ahkPath) {
     pushUniqueFile(candidates, cfg.ahkPath);
   }
 
-  pushLocalAhkBinCandidates(candidates, cwd);
-  pushLocalAhkBinCandidates(candidates, path.dirname(cwd));
+  if (env.AHK_MCP_ALLOW_LOCAL_AHK) {
+    pushLocalAhkBinCandidates(candidates, cwd);
+    pushLocalAhkBinCandidates(candidates, path.dirname(cwd));
+  }
 
   for (const executablePath of PROGRAM_FILES_AHK_EXECUTABLES) {
     pushUniqueFile(candidates, executablePath);
@@ -243,6 +299,16 @@ export function getAutoHotkeyExecutableCandidates(
     }
   }
 
+  // Resolve PATH ourselves: Windows `where` and bare spawn also search cwd.
+  // Blank/relative PATH entries implicitly trust a checkout and are ignored.
+  for (const entry of (process.env.PATH ?? process.env.Path ?? '').split(path.delimiter)) {
+    const directory = entry.trim().replace(/^"(.*)"$/, '$1');
+    if (!path.isAbsolute(directory)) continue;
+    for (const name of ['AutoHotkey64.exe', 'AutoHotkey.exe', 'AutoHotkey32.exe']) {
+      pushUniqueFile(candidates, path.join(directory, name));
+    }
+  }
+
   return candidates;
 }
 
@@ -254,6 +320,13 @@ export function resolveAutoHotkeyPath(
     if (isExistingFile(candidate)) {
       return candidate;
     }
+  }
+
+  const configured = configuredAutoHotkeyPath(options);
+  if (configured) {
+    throw new Error(
+      `${configured.setting}: AutoHotkey executable is not an existing file: ${candidates[0]}`
+    );
   }
 
   return undefined;

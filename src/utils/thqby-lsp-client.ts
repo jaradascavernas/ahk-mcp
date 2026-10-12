@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import logger from '../logger.js';
 import { toolSettings } from '../core/tool-settings.js';
-import { resolveAutoHotkeyPath } from '../core/config.js';
+import { getConfiguredThqbyPath, resolveAutoHotkeyPath } from '../core/config.js';
 import { envConfig } from '../core/env-config.js';
 
 /**
@@ -71,10 +71,27 @@ const DEFAULT_TIMEOUT_MS = 15000;
 const DEFAULT_LOCALE = 'en-us';
 const DEFAULT_IDLE_MS = 10 * 60 * 1000;
 
-/** Locate server.js: env, settings, a repo-local checkout, then the VS Code extension. */
+function configuredThqbyServerPath(candidate: string): string | null {
+  const absolute = path.resolve(candidate);
+  try {
+    if (fs.statSync(absolute).isFile()) return absolute;
+    const server = path.join(absolute, 'server', 'dist', 'server.js');
+    return fs.statSync(server).isFile() ? server : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Locate server.js: operator env/file, legacy settings, a checkout, then extensions. */
 export function resolveThqbyServerPath(): string | null {
+  const configuredPath = getConfiguredThqbyPath();
+  if (configuredPath) return configuredThqbyServerPath(configuredPath);
+
   const envPath = process.env.AHK_THQBY_LSP_SERVER;
-  if (envPath && fs.existsSync(envPath)) return envPath;
+  if (envPath) {
+    const legacyPath = configuredThqbyServerPath(envPath);
+    if (legacyPath) return legacyPath;
+  }
 
   const settingsPath = toolSettings.getSettings().thqbyLspServerPath;
   if (settingsPath && fs.existsSync(settingsPath)) return settingsPath;

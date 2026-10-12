@@ -55,6 +55,8 @@ jobs:
           fi
 
       - run: npm test
+      - run: npm run test:portable
+      - run: npm run test:evals
       # Needs dist/ from the build step (spawns the built server)
       - name: Run integration tests
         run: npm run test:integration

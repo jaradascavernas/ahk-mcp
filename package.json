@@ -32,6 +32,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "start:http": "cross-env PORT=3000 node dist/index.js --http",
+    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts",
     "build": "npm run clean && node node_modules/typescript/bin/tsc -p tsconfig.build.json",
     "build:portable": "node scripts/build-portable-runtime.mjs",
     "test:portable": "node --test Tests/portable-runtime.test.mjs",

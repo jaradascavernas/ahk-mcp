@@ -638,7 +638,15 @@ describe('declarations', () => {
     visit(SRC_DIR);
 
     // Platform facts, not operator configuration.
-    const platform = new Set(['APPDATA', 'HOME', 'USERPROFILE', 'LOCALAPPDATA', 'ProgramFiles']);
+    const platform = new Set([
+      'APPDATA',
+      'HOME',
+      'USERPROFILE',
+      'LOCALAPPDATA',
+      'ProgramFiles',
+      'PATH',
+      'Path',
+    ]);
     const undeclared = [...read].filter(name => !platform.has(name) && !known.has(name)).sort();
     expect(undeclared).toEqual([]);
     expect(read.size).toBeGreaterThan(20);

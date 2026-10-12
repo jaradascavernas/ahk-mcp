@@ -66,6 +66,45 @@ const ACTIVE_PATHS: Record<string, string> = {
   AHK_VSCode_Open: 'filePath',
 };
 
+// Navigate already returns structured results, although its legacy wire
+// definition omits outputSchema. Keep those variants until its v3 migration.
+const NAVIGATE_OUTPUT = z.object({
+  engine: z.enum(['text', 'thqby']),
+  approximate: z.boolean().optional(),
+  file: z.string().optional(),
+  symbols: z
+    .array(
+      z.object({
+        name: z.string(),
+        kind: z.string(),
+        line: z.number(),
+        column: z.number(),
+        endLine: z.number().optional(),
+        container: z.string().optional(),
+        file: z.string().optional(),
+      })
+    )
+    .optional(),
+  locations: z
+    .array(
+      z.object({
+        file: z.string(),
+        line: z.number(),
+        column: z.number(),
+        endLine: z.number().optional(),
+        endColumn: z.number().optional(),
+        text: z.string().optional(),
+      })
+    )
+    .optional(),
+  contents: z.string().optional(),
+  applied: z.boolean().optional(),
+  newName: z.string().optional(),
+  files: z
+    .array(z.object({ file: z.string(), edits: z.number(), samples: z.array(z.string()) }))
+    .optional(),
+});
+
 type ResolveInputs = (
   name: string,
   args: Record<string, unknown>,
@@ -75,7 +114,7 @@ type ResolveInputs = (
 export function createLegacyToolDefinitions(
   host: IToolServer,
   resolveInputs: ResolveInputs,
-  http: boolean
+  chatGptCompat: boolean
 ): AnyToolDefinition[] {
   const handlers = new LegacyHandlers(host);
   const metadata = getToolMetadata().filter(({ definition }) =>
@@ -92,11 +131,16 @@ export function createLegacyToolDefinitions(
     const input = converted.strict();
     // Text-only handlers have no structured payload yet. Validate their content
     // envelope and expose it as structured output, preserving all content blocks.
-    const output = definition.outputSchema
+    const structuredOutput = definition.outputSchema
       ? z.fromJSONSchema(definition.outputSchema as Parameters<typeof z.fromJSONSchema>[0])
-      : z.object({
-          content: z.array(z.looseObject({ type: z.string(), text: z.string().optional() })),
-        });
+      : definition.name === 'AHK_Navigate'
+        ? NAVIGATE_OUTPUT
+        : undefined;
+    const output =
+      structuredOutput ??
+      z.object({
+        content: z.array(z.looseObject({ type: z.string(), text: z.string().optional() })),
+      });
     if (!(output instanceof z.ZodObject))
       throw new Error(`${definition.name}: output must be an object`);
     const pathArgs: PathArgSpec[] = [];
@@ -238,7 +282,7 @@ export function createLegacyToolDefinitions(
           log.toolEnd(token, response);
           toolAnalytics.recordCall(definition.name, !response.isError, Date.now() - started);
           return {
-            structured: definition.outputSchema
+            structured: structuredOutput
               ? (response.structuredContent as Record<string, unknown>)
               : { content: response.content },
             response,
@@ -258,7 +302,7 @@ export function createLegacyToolDefinitions(
       },
     });
   });
-  if (http) {
+  if (chatGptCompat) {
     for (const [name, key] of [
       ['search', 'query'],
       ['fetch', 'id'],

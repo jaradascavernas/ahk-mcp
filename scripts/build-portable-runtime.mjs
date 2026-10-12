@@ -193,6 +193,10 @@ try {
     format: 'esm',
     platform: 'node',
     target: 'node20',
+    // Zod 4 marks its re-export entrypoints as side-effect-free. With the SDK's
+    // top-level schemas and our dynamic imports, esbuild otherwise drops the
+    // initialization before those schemas use Zod's constructors.
+    ignoreAnnotations: true,
     sourcemap: false,
     metafile: true,
     legalComments: 'inline',

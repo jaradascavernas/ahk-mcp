@@ -486,19 +486,26 @@ interface RunRecord {
 // Environment
 // ---------------------------------------------------------------------------
 
-let secretEnvNames: readonly string[] | undefined;
+let secretEnvNames: ReadonlySet<string> | undefined;
 
 /** Server secrets (auth and debugger tokens) that user scripts have no use for. */
-function getSecretEnvNames(): readonly string[] {
-  secretEnvNames ??= describeEnvVars()
-    .filter(variable => variable.secret)
-    .flatMap(variable => [variable.name, ...variable.aliases.map(alias => alias.name)]);
+function getSecretEnvNames(): ReadonlySet<string> {
+  secretEnvNames ??= new Set(
+    describeEnvVars()
+      .filter(variable => variable.secret)
+      .flatMap(variable => [variable.name, ...variable.aliases.map(alias => alias.name)])
+      .map(name => name.toUpperCase())
+  );
   return secretEnvNames;
 }
 
 function childEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env = { ...base };
-  for (const name of getSecretEnvNames()) delete env[name];
+  const secrets = getSecretEnvNames();
+  // Windows treats names case-insensitively; the copied object does not.
+  for (const name of Object.keys(env)) {
+    if (secrets.has(name.toUpperCase())) delete env[name];
+  }
   return env;
 }
 

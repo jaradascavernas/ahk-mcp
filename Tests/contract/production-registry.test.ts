@@ -123,6 +123,26 @@ describe('production v3 dispatch', () => {
 
 // Replace only a leaf handler to force drift/deadline conditions; startup,
 // schemas, registry construction, transport and dispatch are production code.
+const navigationResults = {
+  symbols: {
+    file: 'app.ahk',
+    symbols: [{ name: 'Save', kind: 'function', line: 1, column: 1 }],
+    engine: 'text',
+    approximate: true,
+  },
+  definition: {
+    locations: [{ file: 'app.ahk', line: 1, column: 1, text: 'Save() {' }],
+    engine: 'text',
+    approximate: true,
+  },
+  hover: { contents: 'Save()', engine: 'thqby' },
+  rename: {
+    applied: false,
+    newName: 'Store',
+    files: [{ file: 'app.ahk', edits: 1, samples: ['1: Save() → Store()'] }],
+    engine: 'thqby',
+  },
+};
 const instrumentedEntry = `
   import { AutoHotkeyMcpServer } from './src/server.ts';
   import { currentSignal } from './src/tooling/request-context.ts';
@@ -138,6 +158,13 @@ const instrumentedEntry = `
     }
     return execute(args);
   };
+  // Navigation's real response variants need an external language server for
+  // hover/rename. Replace that leaf while exercising the production adapter.
+  const navigationResults = ${JSON.stringify(navigationResults)};
+  app.ahkNavigateToolInstance.execute = async args => ({
+    content: [{type:'text', text:'navigation result'}],
+    structuredContent: navigationResults[args.action],
+  });
   await app.start();
 `;
 
@@ -249,6 +276,18 @@ describe.each(['2025-11-25', '2026-07-28'])('production pipeline (%s)', era => {
     expect(result.result?.isError).toBe(true);
     expect(result.result?._meta?.code).toBe('INTERNAL');
   });
+  it.each(Object.entries(navigationResults))(
+    'preserves the existing structured navigation result for %s',
+    async (action, expected) => {
+      const response = await request('tools/call', {
+        name: 'AHK_Navigate',
+        arguments: { action, code: 'Save() {}', newName: 'Store' },
+      });
+      expect(response.error).toBeUndefined();
+      expect(response.result?.isError).not.toBe(true);
+      expect(response.result?.structuredContent).toEqual(expected);
+    }
+  );
   it('aborts a production call through the v3 deadline and request context', async () => {
     const result = await request('tools/call', {
       name: 'AHK_File_View',
@@ -337,4 +376,94 @@ describe.each(['2025-11-25', '2026-07-28'])('production pipeline (%s)', era => {
       expect(outcome.result?.structuredContent).toHaveProperty('content');
     }
   );
+});
+
+describe.each([
+  { transport: 'stdio', enabled: 'true', toolsets: 'compat', listed: true },
+  { transport: 'http', enabled: 'false', toolsets: 'compat', listed: false },
+  { transport: 'stdio', enabled: 'true', toolsets: 'files', listed: false },
+])('production compatibility configuration ($transport, $enabled, $toolsets)', config => {
+  let child: ChildProcessWithoutNullStreams;
+  let base: string;
+  let id = 0;
+  let stderr = '';
+  const pending = new Map<number, { resolve(value: Response): void; reject(error: Error): void }>();
+  const request = (method: string, params: object = {}) =>
+    new Promise<Response>((resolve, reject) => {
+      const requestId = ++id;
+      pending.set(requestId, { resolve, reject });
+      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: requestId, method, params }) + '\n');
+    });
+
+  beforeAll(async () => {
+    base = await fs.mkdtemp(path.join(os.tmpdir(), 'production-compat-'));
+    // Use stdio to inspect the production server factory for both configured
+    // transports without binding an HTTP port in the test.
+    const entry = `
+      import { AutoHotkeyMcpServer } from './src/server.ts';
+      import { serveStdio } from '@modelcontextprotocol/server/stdio';
+      const app = new AutoHotkeyMcpServer();
+      await app.initialize();
+      serveStdio(() => app.createServer());
+      process.stdin.on('end', () => process.exit(0));
+    `;
+    child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', entry], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        AHK_MCP_CONFIG_DIR: path.join(base, 'config'),
+        AHK_MCP_SETTINGS_PATH: path.join(base, 'settings.json'),
+        AHK_MCP_TRANSPORT: config.transport,
+        AHK_MCP_CHATGPT_COMPAT: config.enabled,
+        AHK_MCP_TOOLSETS: config.toolsets,
+        AHK_MCP_READ_ONLY: 'true',
+        AHK_DAP_ENABLED: '0',
+      },
+    });
+    child.stderr.on('data', data => {
+      stderr += String(data);
+    });
+    createInterface({ input: child.stdout }).on('line', line => {
+      const response = JSON.parse(line);
+      pending.get(response.id)?.resolve(response);
+      pending.delete(response.id);
+    });
+    child.on('exit', code => {
+      for (const waiter of pending.values())
+        waiter.reject(new Error(`Server exited ${code}: ${stderr}`));
+      pending.clear();
+    });
+    const initialized = await request('initialize', {
+      protocolVersion: '2025-11-25',
+      capabilities: {},
+      clientInfo: { name: 'production-compat', version: '1' },
+    });
+    expect(initialized.error).toBeUndefined();
+    child.stdin.write(
+      JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n'
+    );
+  });
+
+  afterAll(async () => {
+    if (child && child.exitCode === null) {
+      const exited = new Promise(resolve => child.once('exit', resolve));
+      child.stdin.end();
+      await exited;
+    }
+    if (base) await fs.rm(base, { recursive: true, force: true });
+  });
+
+  it('lists and permits search/fetch only when opted in and their toolset is enabled', async () => {
+    const listing = await request('tools/list');
+    const names = listing.result?.tools?.map(tool => tool.name) ?? [];
+    for (const name of ['search', 'fetch']) {
+      expect(names.includes(name)).toBe(config.listed);
+      // A listed tool reaches argument validation; a hidden tool is refused.
+      const response = await request('tools/call', { name, arguments: {} });
+      if (config.listed) {
+        expect(response.error).toBeUndefined();
+        expect(response.result?._meta?.code).toBe('INVALID_ARGUMENT');
+      } else expect(response.error?.code).toBe(-32602);
+    }
+  });
 });

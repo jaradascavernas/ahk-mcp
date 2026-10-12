@@ -4,7 +4,6 @@ import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
 import fsSync from 'fs';
-import os from 'os';
 import logger from '../logger.js';
 import { activeFile, autoDetect } from '../core/active-file.js';
 import { loadConfig, resolveAutoHotkeyPath } from '../core/config.js';
@@ -198,33 +197,7 @@ export class AhkRunTool {
   }
 
   private static async findAutoHotkeyPath(): Promise<string | undefined> {
-    const configuredOrLocalPath = resolveAutoHotkeyPath();
-    if (configuredOrLocalPath) {
-      logger.info(`Found AutoHotkey via config/local priority: ${configuredOrLocalPath}`);
-      return configuredOrLocalPath;
-    }
-
-    // Fall back to PATH lookup
-    if (os.platform() === 'win32') {
-      const whereCandidates = ['AutoHotkey64.exe', 'AutoHotkey.exe'];
-      for (const exeName of whereCandidates) {
-        try {
-          const { stdout } = await execAsync(`where ${exeName}`);
-          const foundPath = stdout
-            .split(/\r?\n/)
-            .map(line => line.trim())
-            .find(Boolean);
-          if (foundPath) {
-            logger.info(`Found AutoHotkey in PATH (${exeName}): ${foundPath}`);
-            return foundPath;
-          }
-        } catch {
-          // Continue to next executable candidate
-        }
-      }
-    }
-
-    return undefined;
+    return resolveAutoHotkeyPath();
   }
 
   private static extractFirstOutputLine(output: string): string | undefined {

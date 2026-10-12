@@ -187,6 +187,27 @@ describe('RunManager', () => {
       });
       expect(spawner.last().options.env).toEqual({ KEEP: '1' });
     });
+
+    it('strips every casing of server secret names without changing the source environment', async () => {
+      const spawner = createFakeSpawner({ onSpawn: child => child.exit(0) });
+      const env = {
+        AHK_MCP_AUTH_TOKEN: 'canonical-secret',
+        ahk_mcp_auth_token: 'lowercase-secret',
+        Ahk_Mcp_Dap_Token: 'mixed-case-secret',
+        ahk_mcp_observability_token: 'observability-secret',
+        AHK_MCP_AUTH_TOKEN_HINT: 'keep this hint',
+        Keep: '1',
+      };
+      const original = { ...env };
+
+      await manager(spawner).run({ exe: EXE, script: SCRIPT, env });
+
+      expect(spawner.last().options.env).toEqual({
+        AHK_MCP_AUTH_TOKEN_HINT: 'keep this hint',
+        Keep: '1',
+      });
+      expect(env).toEqual(original);
+    });
   });
 
   describe('decoding', () => {
