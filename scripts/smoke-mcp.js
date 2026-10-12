@@ -221,6 +221,8 @@ async function main() {
       'AHK_File_List',
       'AHK_File_View',
       'AHK_Diagnostics',
+      'AHK_Check',
+      'AHK_Navigate',
       'AHK_Run',
     ];
     for (const name of requiredTools) {

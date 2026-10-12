@@ -132,9 +132,8 @@ try {
     `resultType=${modern?.result?.resultType} ttlMs=${modern?.result?.ttlMs} cacheScope=${modern?.result?.cacheScope}`
   );
   check(
-    'modern tools/list is deterministically ordered',
-    Array.isArray(tools) &&
-      tools.every((tool, i) => i === 0 || tools[i - 1].name.localeCompare(tool.name) <= 0),
+    'modern tools/list is deterministically ordered (code units)',
+    Array.isArray(tools) && tools.every((tool, i) => i === 0 || tools[i - 1].name <= tool.name),
     Array.isArray(tools) ? `first=${tools[0]?.name} last=${tools[tools.length - 1]?.name}` : ''
   );
 

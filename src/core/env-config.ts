@@ -463,6 +463,12 @@ export const envSchema = z.object({
       'Maximum number of cached AutoHotkey validation results. Entries are keyed by path and invalidated when the file changes.',
     aliases: ['AHK_CHECK_CACHE_SIZE'],
   }),
+  AHK_MCP_THQBY_IDLE_MS: integer(600_000, 1, {
+    group: 'tools',
+    description:
+      'Milliseconds the shared THQBY language server may sit idle before it is stopped. It starts again on the next `AHK_Check` or `AHK_Navigate` call.',
+    aliases: ['AHK_THQBY_IDLE_MS'],
+  }),
   AHK_MCP_STUDIO_EXECUTION: bool(true, {
     group: 'tools',
     description: 'Let Macro Studio run macros. `off` allows browsing and editing only.',
@@ -1008,6 +1014,10 @@ class EnvironmentConfig {
 
   getToolTimeoutMs(): number {
     return this.read().AHK_MCP_TOOL_TIMEOUT_MS;
+  }
+
+  getThqbyIdleMs(): number {
+    return this.read().AHK_MCP_THQBY_IDLE_MS;
   }
 
   getTaskPollIntervalMs(): number {

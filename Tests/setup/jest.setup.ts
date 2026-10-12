@@ -1,8 +1,13 @@
-import { jest } from '@jest/globals';
+import { afterAll, jest } from '@jest/globals';
+import { isolateAhkMcpConfig } from './isolated-config';
 
 // Runs before every unit, contract and ahk suite. Keep it free of global
 // helpers and module mocks: suites import what they need, so each file shows
 // its own dependencies and a spy on 'fs' is never shadowed by a stale mock.
+
+// Keep tool state out of the developer's real ahk-mcp config (see isolated-config.ts).
+const removeIsolatedConfig = isolateAhkMcpConfig();
+afterAll(() => removeIsolatedConfig());
 
 process.env.NODE_ENV = 'test';
 // Server code logs to stderr; tests only need to see real errors.

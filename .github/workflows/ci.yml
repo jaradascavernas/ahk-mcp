@@ -55,8 +55,24 @@ jobs:
           fi
 
       - run: npm test
+      # Needs dist/ from the build step (spawns the built server)
+      - name: Run integration tests
+        run: npm run test:integration
+      # Headless MCP protocol checks against the built server (stdio and HTTP)
       - run: npm run smoke:mcp
       - run: npm run smoke:mcp:2026
+      - run: npm run smoke:http
+
+  # Known vulnerabilities in what ships (dev-only dependencies are covered by security.yml)
+  audit:
+    name: Production dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm audit --omit=dev --audit-level=moderate
 
   autohotkey:
     name: AutoHotkey v2 tests (windows-latest)
@@ -121,3 +137,22 @@ jobs:
         run: node scripts/check-privacy.mjs
         env:
           AHK_MCP_PRIVACY_DENYLIST: ${{ secrets.AHK_MCP_PRIVACY_DENYLIST }}
+
+  # Verify the production image still builds (not pushed)
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: [build-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: production
+          platforms: linux/amd64
+          push: false
+          tags: ahk-mcp-server:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

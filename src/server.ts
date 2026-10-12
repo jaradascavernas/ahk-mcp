@@ -88,6 +88,9 @@ import { AhkThqbyDocumentSymbolsTool } from './tools/ahk-thqby-document-symbols.
 import { AhkCloudValidateTool } from './tools/ahk-cloud-validate.js';
 import { AhkDebugDBGpTool } from './tools/ahk-debug-dbgp.js';
 import { AhkEvalTool, AhkReplResetTool, replSession } from './tools/ahk-eval.js';
+import { shutdownThqbySession } from './utils/thqby-lsp-client.js';
+import { AhkCheckTool } from './tools/ahk-check.js';
+import { AhkNavigateTool } from './tools/ahk-navigate.js';
 import { processManager } from './core/process-manager.js';
 import { getActiveFilePath } from './core/active-file.js';
 import { configManager } from './core/path-converter-config.js';
@@ -192,6 +195,8 @@ export class AutoHotkeyMcpServer {
   public ahkDebugDBGpToolInstance: AhkDebugDBGpTool;
   public ahkEvalToolInstance: AhkEvalTool;
   public ahkReplResetToolInstance: AhkReplResetTool;
+  public ahkCheckToolInstance: AhkCheckTool;
+  public ahkNavigateToolInstance: AhkNavigateTool;
 
   /** DAP server handle, non-null when AHK_DAP_ENABLED=1. */
   private dapServer: DapServerHandle | null = null;
@@ -235,6 +240,8 @@ export class AutoHotkeyMcpServer {
     this.ahkDebugDBGpToolInstance = new AhkDebugDBGpTool();
     this.ahkEvalToolInstance = new AhkEvalTool();
     this.ahkReplResetToolInstance = new AhkReplResetTool();
+    this.ahkCheckToolInstance = new AhkCheckTool();
+    this.ahkNavigateToolInstance = new AhkNavigateTool();
 
     // Initialize workflow tool with dependencies (must be after other tools are initialized)
     this.ahkWorkflowAnalyzeFixRunToolInstance = new AhkWorkflowAnalyzeFixRunTool(
@@ -272,7 +279,7 @@ export class AutoHotkeyMcpServer {
       {
         enforceStrictCapabilities: true,
         instructions:
-          'Prefer read-only analysis and preview modes before edits or execution. Establish a target with AHK_File_Active, run AHK_Diagnostics or AHK_Lint before AHK_Run, and request task execution only when a tool advertises execution.taskSupport as optional.',
+          'Prefer read-only analysis and preview modes before edits or execution. Establish a target with AHK_File_Active, check it with AHK_Check before AHK_Run, use AHK_Navigate for definitions, references and renames, and request task execution only when a tool advertises execution.taskSupport as optional. The operator chooses which toolsets are listed (AHK_MCP_TOOLSETS); a tool outside them is not callable.',
         capabilities: {
           tools: {
             listChanged: true,
@@ -1004,7 +1011,7 @@ export class AutoHotkeyMcpServer {
             {
               uri,
               mimeType: 'text/markdown',
-              text: '## 🎯 AutoHotkey Context Available\n\nUse the `AHK_Context_Injector` tool to analyze your prompts and get relevant AutoHotkey documentation automatically injected.',
+              text: '## 🎯 AutoHotkey Context Available\n\nUse the `AHK_Doc_Search` tool to look up AutoHotkey v2 functions, classes and directives.',
             },
           ],
           ...this.getDiscoveryCacheHints(),
@@ -1643,7 +1650,7 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
           {
             uri: originalUri,
             mimeType: 'text/markdown',
-            text: '## 🎯 AutoHotkey Context Available\n\nUse the `AHK_Context_Injector` tool to analyze your prompts and get relevant AutoHotkey documentation automatically injected.',
+            text: '## 🎯 AutoHotkey Context Available\n\nUse the `AHK_Doc_Search` tool to look up AutoHotkey v2 functions, classes and directives.',
           },
         ],
       };
@@ -2585,6 +2592,13 @@ F12::hkManager.ToggleHotkey("F1", (*) => MsgBox("F1 pressed!"), "Example hotkey"
       replSession.stop();
     } catch (error) {
       logger.error('Failed to stop REPL session:', error);
+    }
+
+    // The shared THQBY language server backs AHK_Check and AHK_Navigate.
+    try {
+      await shutdownThqbySession();
+    } catch (error) {
+      logger.error('Failed to stop THQBY language server:', error);
     }
 
     try {
