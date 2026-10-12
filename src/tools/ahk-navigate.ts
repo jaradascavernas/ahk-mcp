@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import logger from '../logger.js';
 import { safeParse } from '../core/validation-middleware.js';
 import { assertAllowedPath } from '../core/path-policy.js';

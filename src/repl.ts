@@ -67,9 +67,9 @@ const DEFAULT_TIMEOUT = 10000;
  * defined via Eval) persists across calls until `reset`.
  *
  * Requires the alpha.30+Console fork of AutoHotkey (`Print()` BIF, `#EnableEval`
- * / `Eval()`). The binary is resolved via `resolveAutoHotkeyPath()` — the same path ahk-mcp
- * uses for its run/diagnostics tools — so set it once via `AHK_PATH` or the
- * `ahkPath` config value.
+ * / `Eval()`). AHK_MCP_FORK_AHK_PATH / operator-config forkAhkPath selects this
+ * interpreter separately from the stock script runtime. Without a fork override,
+ * the normal interpreter setting and discovery remain the legacy fallback.
  */
 export class ReplSession {
   private child: ChildProcessWithoutNullStreams | null = null;
@@ -85,7 +85,12 @@ export class ReplSession {
 
   private ensureStarted(): void {
     if (this.child) return;
-    const bin = resolveAutoHotkeyPath() ?? 'AutoHotkey64.exe';
+    const bin = resolveAutoHotkeyPath({ kind: 'fork' });
+    if (!bin) {
+      throw new Error(
+        'AutoHotkey Console fork not found; set AHK_MCP_FORK_AHK_PATH or forkAhkPath in operator-config.json.'
+      );
+    }
     const child = spawn(bin, ['/ErrorStdOut=utf-8', toWinArg(HOST_SCRIPT)], {
       windowsHide: true,
     }) as ChildProcessWithoutNullStreams;

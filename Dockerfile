@@ -46,7 +46,7 @@ WORKDIR /app
 COPY --chown=ahk-mcp:nodejs package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production --prefer-offline --no-audit && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts --prefer-offline --no-audit && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder --chown=ahk-mcp:nodejs /app/dist ./dist
@@ -107,7 +107,7 @@ EXPOSE 3000
 ENV NODE_ENV=development \
     AHK_MCP_LOG_LEVEL=debug
 
-# Use tini for proper signal handlingIs thiu
+# Use tini for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--"]
 
 # Development command (with file watching)

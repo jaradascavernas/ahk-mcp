@@ -80,7 +80,7 @@ export async function runInspector(
   options: RunOptions = {}
 ): Promise<UiaResponse> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const exe = resolveAutoHotkeyPath();
+  const exe = resolveAutoHotkeyPath({ kind: 'fork' });
 
   if (!exe) {
     return failure(

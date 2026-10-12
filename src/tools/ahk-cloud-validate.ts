@@ -5,14 +5,13 @@
  * Supports one-shot validation and watch mode for auto-validation on save.
  */
 
-import { z } from 'zod';
-import { spawn, exec } from 'child_process';
+import { z } from 'zod/v3';
+import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import type { McpToolResponse } from '../types/mcp-types.js';
 import fsSync from 'fs';
 import path from 'path';
 import os from 'os';
-import { promisify } from 'util';
 import logger from '../logger.js';
 import { activeFile } from '../core/active-file.js';
 import { resolveAutoHotkeyPath } from '../core/config.js';
@@ -20,8 +19,6 @@ import { safeParse } from '../core/validation-middleware.js';
 import { createErrorResponse } from '../utils/response-helpers.js';
 import { getCurrentAbortSignal } from '../core/mcp-request-context.js';
 import { checkCache, type CachedCheckResult } from '../core/check-cache.js';
-
-const execAsync = promisify(exec);
 
 // ===== Schema Definition =====
 
@@ -125,28 +122,7 @@ export const ahkCloudValidateToolDefinition = {
 // ===== AHK Path Detection =====
 
 async function findAutoHotkeyPath(): Promise<string | undefined> {
-  const configuredOrLocalPath = resolveAutoHotkeyPath();
-  if (configuredOrLocalPath) {
-    return configuredOrLocalPath;
-  }
-
-  if (os.platform() === 'win32') {
-    for (const exeName of ['AutoHotkey64.exe', 'AutoHotkey.exe']) {
-      try {
-        const { stdout } = await execAsync(`where ${exeName}`);
-        const foundPath = stdout
-          .split(/\r?\n/)
-          .map(line => line.trim())
-          .find(Boolean);
-        if (foundPath) {
-          return foundPath;
-        }
-      } catch {
-        // Continue checking
-      }
-    }
-  }
-  return undefined;
+  return resolveAutoHotkeyPath();
 }
 
 // ===== Error Parsing =====

@@ -114,8 +114,8 @@ test(
         AHK_PATH: path.join(scratch, 'no-autohotkey.exe'),
         AHK_PATH_WIN: path.join(scratch, 'no-autohotkey.exe'),
         AHK_MCP_DATA_MODE: 'full',
-        // AHK_Prompts and AHK_Context_Injector (legacy) exercise the bundled docs data.
-        AHK_MCP_TOOLSETS: 'core,legacy',
+        // Docs and context handlers exercise data; run tools remain listed without AHK.
+        AHK_MCP_TOOLSETS: 'docs,analysis,run',
       });
       child = spawn(process.execPath, [path.join(runtime, manifest.entrypoint), '--sse'], {
         cwd: unrelatedCwd,

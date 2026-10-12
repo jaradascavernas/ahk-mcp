@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync } from 'node:fs';
-import os from 'node:os';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
@@ -182,8 +181,6 @@ async function main() {
   }
 
   const listDirectory = resolveListDirectory();
-  // Isolated tool settings, so toolsets saved on this machine cannot change the surface.
-  const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'ahk-smoke-'));
   const child = spawn(process.execPath, [serverPath], {
     cwd: repoRoot,
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -191,9 +188,6 @@ async function main() {
       ...process.env,
       NODE_ENV: process.env.NODE_ENV || 'test',
       AHK_MCP_LOG_LEVEL: process.env.AHK_MCP_LOG_LEVEL || 'warn',
-      AHK_MCP_SETTINGS_PATH: path.join(settingsDir, 'tool-settings.json'),
-      // core is the default surface; extras adds AHK_Analytics for the MCP Apps check.
-      AHK_MCP_TOOLSETS: 'core,extras',
     },
   });
 
@@ -226,16 +220,13 @@ async function main() {
       'AHK_File_Active',
       'AHK_File_List',
       'AHK_File_View',
+      'AHK_Diagnostics',
       'AHK_Check',
       'AHK_Navigate',
       'AHK_Run',
-      'AHK_Analytics',
     ];
     for (const name of requiredTools) {
       assertCondition(toolNames.includes(name), `Required tool missing from tools/list: ${name}`);
-    }
-    for (const name of ['AHK_Diagnostics', 'AHK_File_Edit_Small', 'uia_tree']) {
-      assertCondition(!toolNames.includes(name), `Tool from a disabled toolset is listed: ${name}`);
     }
 
     const runTool = toolsResult.tools.find(tool => tool.name === 'AHK_Run');
@@ -306,8 +297,8 @@ async function main() {
     });
 
     const taskCreate = await client.request('tools/call', {
-      name: 'AHK_Check',
-      arguments: { code: '#Requires AutoHotkey v2.0\nMsgBox("ok")', engines: ['static'] },
+      name: 'AHK_Diagnostics',
+      arguments: { code: '#Requires AutoHotkey v2.0\nMsgBox("ok")' },
       task: { ttl: 60000 },
     });
     assertCondition(
@@ -403,34 +394,16 @@ async function main() {
     });
     const viewText = getFirstTextContent(viewResult);
     assertCondition(viewText.length > 0, 'AHK_File_View error response text was empty');
-    const errorMeta = viewResult?._meta?.error;
+    // The v3 registry refuses this out-of-root target before file I/O.
+    assertCondition(viewResult.isError === true, 'AHK_File_View must return isError');
     assertCondition(
-      Boolean(errorMeta && typeof errorMeta === 'object'),
-      'AHK_File_View expected error metadata in _meta.error',
+      viewResult?._meta?.code === 'PATH_NOT_ALLOWED' && viewResult?._meta?.retryable === false,
+      'AHK_File_View expected the v3 path gate error metadata',
       truncate(JSON.stringify(viewResult), 1200)
     );
-
-    const metaChecks = [
-      typeof errorMeta.errorCode === 'string' &&
-        (errorMeta.errorCode === 'FILE_NOT_FOUND' ||
-          errorMeta.errorCode.includes('FILE_NOT_FOUND')),
-      typeof errorMeta.toolName === 'string' && errorMeta.toolName === 'AHK_File_View',
-      typeof errorMeta.category === 'string' && errorMeta.category.length > 0,
-      typeof errorMeta.severity === 'string' && errorMeta.severity.length > 0,
-      Array.isArray(errorMeta.recovery) && errorMeta.recovery.length > 0,
-    ];
-
-    const verboseChecks = [
-      /FILE_NOT_FOUND|File Not Found/i.test(viewText),
-      viewText.includes(missingFilePath),
-      /How to fix/i.test(viewText),
-      /Category/i.test(viewText),
-      /Tool/i.test(viewText) && /AHK_File_View/.test(viewText),
-      ...metaChecks,
-    ];
     assertCondition(
-      verboseChecks.every(Boolean),
-      'AHK_File_View missing expected verbose diagnostics',
+      viewText.startsWith('PATH_NOT_ALLOWED:') && viewText.includes('Allowed roots:'),
+      'AHK_File_View missing path gate diagnostics',
       truncate(viewText, 1200)
     );
 

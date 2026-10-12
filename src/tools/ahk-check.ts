@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import logger from '../logger.js';
 import { safeParse } from '../core/validation-middleware.js';
 import { resolveAutoHotkeyPath } from '../core/config.js';

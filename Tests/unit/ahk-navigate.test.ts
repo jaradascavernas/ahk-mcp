@@ -15,6 +15,7 @@ import {
   type NavSymbol,
 } from '../../src/tools/ahk-navigate';
 import { ThqbySession, shutdownThqbySession } from '../../src/utils/thqby-lsp-client';
+import { resetEnvConfig } from '../../src/core/env-config';
 
 const MOCK_SERVER = path.resolve(__dirname, '../fixtures/mock-lsp-server.cjs');
 
@@ -89,6 +90,7 @@ describe('AhkNavigateTool', () => {
   afterAll(async () => {
     await shutdownThqbySession();
     process.env = savedEnv;
+    resetEnvConfig();
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -97,6 +99,7 @@ describe('AhkNavigateTool', () => {
       process.env.AHK_THQBY_LSP_SERVER = path.join(tmpDir, 'missing.js');
       process.env.USERPROFILE = tmpDir;
       process.env.HOME = tmpDir;
+      resetEnvConfig();
     });
 
     it('finds a definition in an #Include file, marked approximate', async () => {
@@ -151,6 +154,7 @@ describe('AhkNavigateTool', () => {
     beforeAll(async () => {
       await shutdownThqbySession();
       process.env.AHK_THQBY_LSP_SERVER = MOCK_SERVER;
+      resetEnvConfig();
     });
 
     it('uses the server for references and keeps one process across calls', async () => {

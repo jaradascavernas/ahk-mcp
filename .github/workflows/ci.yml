@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, "feat/**"]
   pull_request:
-    branches: [master]
+    branches: [master, "feat/**"]
   workflow_dispatch:
 
 permissions:
@@ -14,113 +14,142 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  NODE_VERSION: "20"
-
 jobs:
-  # Code quality: ESLint, TypeScript, formatting
-  lint:
-    name: Lint, types & formatting
-    runs-on: ubuntu-latest
+  build-test:
+    name: Build and test (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          node-version: ${{ matrix.node }}
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
+      - run: npm run check:types
+      # ts-jest transpiles without type-checking, so the suites get their own pass.
+      - name: Type-check tests
+        run: node node_modules/typescript/bin/tsc -p Tests/setup/tsconfig.tests.json
+      - run: npm run lint
+      - run: npm run build
 
-      - name: Run ESLint (maintained scope)
-        run: npm run lint
+      # gen-tools-docs may read the registry from dist, so this runs after the
+      # build. One OS is enough: the output does not depend on the platform.
+      # The tools generator arrives later (WP40); until then only the config
+      # docs are checked, and the full docs:check takes over by itself.
+      - name: Check generated docs are fresh
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          if [ -f scripts/gen-tools-docs.mjs ]; then
+            npm run docs:check
+          elif [ -f scripts/gen-config-docs.mjs ]; then
+            node scripts/gen-config-docs.mjs --check
+          else
+            echo "No documentation generators yet."
+          fi
 
-      - name: TypeScript type checking
-        run: npm run check:types
-
-      - name: Check code formatting
-        run: npx prettier --check "src/**/*.ts" "Tests/**/*.ts"
+      - run: npm test
+      - run: npm run test:portable
+      - run: npm run test:evals
+      # Needs dist/ from the build step (spawns the built server)
+      - name: Run integration tests
+        run: npm run test:integration
+      # Headless MCP protocol checks against the built server (stdio and HTTP)
+      - run: npm run smoke:mcp
+      - run: npm run smoke:mcp:2026
+      - run: npm run smoke:http
 
   # Known vulnerabilities in what ships (dev-only dependencies are covered by security.yml)
   audit:
     name: Production dependency audit
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 22
+      - run: npm audit --omit=dev --audit-level=moderate
 
-      - name: Run npm audit (production dependencies)
-        run: npm audit --omit=dev --audit-level=moderate
-
-  # Build and test on the supported Node LTS lines (package.json engines: >=20)
-  build-and-test:
-    name: Build & test (${{ matrix.os }}, Node ${{ matrix.node-version }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        node-version: [20, 22]
-
+  autohotkey:
+    name: AutoHotkey v2 tests (windows-latest)
+    runs-on: windows-latest
+    env:
+      AHK_VERSION: "2.0.28"
+      # SHA-256 of AutoHotkey_<AHK_VERSION>.zip; update both together.
+      AHK_ZIP_SHA256: b63be7548792b4ad0dfe424d91cc69376694ed2f758245b7a75a0c77d693b478
+      # A missing runtime fails the job instead of skipping every suite.
+      AHK_TEST_REQUIRE_RUNTIME: "1"
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          node-version: 22
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install AutoHotkey v2
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "AutoHotkey_$env:AHK_VERSION.zip"
+          $dir = Join-Path $env:RUNNER_TEMP 'AutoHotkey'
+          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v$env:AHK_VERSION/AutoHotkey_$env:AHK_VERSION.zip" -OutFile $zip
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          if ($hash -ne $env:AHK_ZIP_SHA256) { throw "AutoHotkey archive hash mismatch: $hash" }
+          Expand-Archive -Path $zip -DestinationPath $dir -Force
+          $exe = Join-Path $dir 'AutoHotkey64.exe'
+          if (-not (Test-Path $exe)) { throw 'AutoHotkey64.exe is missing from the archive' }
+          "AHK_MCP_AHK_PATH=$exe" >> $env:GITHUB_ENV
+          $dir >> $env:GITHUB_PATH
 
-      - name: Build project
-        run: npm run build
+      - name: Check the AutoHotkey runtime
+        shell: pwsh
+        run: |
+          $script = Join-Path $env:RUNNER_TEMP 'version.ahk'
+          Set-Content -Path $script -Value 'FileAppend A_AhkVersion "`n", "*"'
+          $version = & $env:AHK_MCP_AHK_PATH /ErrorStdOut $script | Out-String
+          if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne $env:AHK_VERSION) {
+            throw "AutoHotkey did not run (exit $LASTEXITCODE, output '$version')"
+          }
+          Write-Output "AutoHotkey $($version.Trim())"
 
-      - name: Run unit and contract tests
-        run: npm test
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:ahk
 
-      # Needs dist/ from the build step (spawns the built server)
-      - name: Run integration tests
-        run: npm run test:integration
+  privacy:
+    name: Privacy denylist scan
+    runs-on: ubuntu-latest
+    # The denylist is a repository secret, which forks and pull requests from
+    # forks do not receive. Everywhere else a missing secret fails the scan.
+    if: ${{ !github.event.repository.fork && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    steps:
+      - uses: actions/checkout@v7
 
-      - name: Run portable runtime tests
-        run: npm run test:portable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
 
-      # Headless MCP protocol checks against the built server (stdio and HTTP)
-      - name: Smoke test MCP over stdio
-        run: npm run smoke:mcp
-
-      - name: Smoke test MCP 2026-07-28 protocol
-        run: npm run smoke:mcp:2026
-
-      - name: Smoke test MCP over HTTP
-        run: npm run smoke:http
+      - name: Scan tracked files
+        run: node scripts/check-privacy.mjs
+        env:
+          AHK_MCP_PRIVACY_DENYLIST: ${{ secrets.AHK_MCP_PRIVACY_DENYLIST }}
 
   # Verify the production image still builds (not pushed)
   docker:
     name: Docker build
     runs-on: ubuntu-latest
-    needs: [build-and-test]
+    needs: [build-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build production image
-        uses: docker/build-push-action@v5
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
         with:
           context: .
           target: production
