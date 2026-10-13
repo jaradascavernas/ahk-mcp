@@ -1,5 +1,12 @@
 # MCP Frontier Review (July 2026)
 
+This document records the July review, before the subsequent protocol migration.
+The current server uses the split v2 SDK packages and serves `2026-07-28`
+stateless requests alongside legacy clients. The deferred stateless transport
+and SDK migration notes below describe the earlier implementation; see
+[MCP Transport Compatibility](MCP_TRANSPORT_COMPATIBILITY.md) for current setup.
+The modern Tasks extension remains unadvertised.
+
 This review compares the server with the stable `2025-11-25` protocol, the
 locked `2026-07-28` release candidate, accepted SEPs, MCP Apps, the official
 TypeScript SDK examples, and production servers such as Cloudflare MCP and

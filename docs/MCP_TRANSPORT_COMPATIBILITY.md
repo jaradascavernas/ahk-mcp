@@ -1,11 +1,15 @@
 # MCP Transport Compatibility
 
-This server supports the current MCP HTTP transport plus an opt-in compatibility
-transport:
+This server serves both protocol eras through Streamable HTTP at `/mcp`:
 
-1. Preferred: `Streamable HTTP` at `/mcp`
-2. Legacy compatibility: `SSE + POST` at `/sse` and `/message` (also
-   `/messages`), enabled only with `AHK_MCP_LEGACY_SSE=1`
+- `2026-07-28`: stateless requests carry protocol version, client capabilities,
+  and client identity in `params._meta`; there is no `initialize` handshake.
+- Legacy clients, including `2025-11-25`: the same endpoint answers `initialize`
+  through the SDK's stateless compatibility adapter.
+
+Neither HTTP flow uses `Mcp-Session-Id`. `GET /mcp` returns `405`; the separate
+`/sse`, `/message`, and `/messages` endpoints are no longer served.
+`AHK_MCP_LEGACY_SSE=1` emits a warning and does not restore them.
 
 HTTP binds to `127.0.0.1` by default. Set `AHK_MCP_HTTP_HOST` to change the
 binding. A non-loopback binding requires `AHK_MCP_AUTH_TOKEN` unless
@@ -21,85 +25,76 @@ Accepted 2026 routing headers are validated whenever supplied. Set
 `AHK_MCP_REQUIRE_ROUTING_HEADERS=1` only when all connected HTTP clients emit
 `Mcp-Method` and the applicable `Mcp-Name` header.
 
-Draft discovery metadata is public at `/.well-known/mcp/server-card.json`.
-Discovery and resource-list cache TTLs default to 30 seconds and can be changed
-with `AHK_MCP_DISCOVERY_TTL_MS`.
+Discovery metadata is public at `/.well-known/mcp/server-card.json`. Discovery
+and resource-list cache TTLs default to 30 seconds and can be changed with
+`AHK_MCP_DISCOVERY_TTL_MS`.
 
-Deferred tool results are retained for one hour by default, capped at 24 hours.
+Legacy task results are retained for one hour by default, capped at 24 hours.
 Use `AHK_MCP_DEFAULT_TASK_TTL_MS` and `AHK_MCP_MAX_TASK_TTL_MS` to tune result
-retention. `AHK_MCP_TASK_TIMEOUT_MS` independently controls how long task work
-may execute; a task TTL is not an execution timeout.
+retention. TTL counts from task creation and can expire running work.
+`AHK_MCP_TASK_TIMEOUT_MS` sets a separate execution limit. The modern Tasks
+extension is not advertised because the SDK does not yet serve its methods.
 
-## Streamable HTTP Session Flow (`/mcp`)
+## Modern Request Flow (`2026-07-28`)
 
-1. Send `initialize` via `POST /mcp` **without** `mcp-session-id`
-2. Read `mcp-session-id` from response headers
-3. Reuse that `mcp-session-id` header on all subsequent `POST /mcp`, `GET /mcp`,
-   and `DELETE /mcp`
+1. Optionally call `server/discover` to read supported modern versions and
+   server capabilities.
+2. Send each operation via `POST /mcp`, with the request envelope in
+   `params._meta`.
+3. When a response has `resultType: "input_required"`, retry the operation with
+   the requested answers in `params.inputResponses`.
 
-If step 3 is skipped, the server returns a verbose JSON-RPC error response.
+Ordinary complete results have `resultType: "complete"`. Catalog responses also
+carry `ttlMs` and `cacheScope` hints. The server card advertises both modern and
+legacy protocol versions; `server/discover` advertises modern versions only.
 
 ## Required/Recommended Headers
 
 - `Content-Type: application/json` for `POST`
-- `Accept: application/json, text/event-stream` recommended for broad client
-  compatibility
-- `mcp-session-id: <id>` required after initialization
-- `MCP-Protocol-Version: 2025-11-25` required on requests after initialization
+- `Accept: application/json, text/event-stream` required for legacy HTTP
+  requests; recommended for broad client compatibility
+- `MCP-Protocol-Version: 2026-07-28` for modern requests; use the negotiated
+  version for legacy requests after initialization
+- `Mcp-Method` matching the JSON-RPC method, and `Mcp-Name` for named
+  operations, when required by `AHK_MCP_REQUIRE_ROUTING_HEADERS=1`
 - A supplied `Origin` must match `AHK_MCP_ALLOWED_ORIGINS`; when no allowlist is
   configured, only loopback origins for the configured port are accepted
 - `Authorization: Bearer <token>` required when `AHK_MCP_AUTH_TOKEN` is set
 
 ## Quick cURL Examples
 
-Initialize:
+List tools directly with a modern request, without initialization:
 
 ```bash
 curl -i http://localhost:3000/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
+  -H "MCP-Protocol-Version: 2026-07-28" \
+  -H "Mcp-Method: tools/list" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"client","version":"1.0.0"}}}}'
+```
+
+Initialize a legacy client on the same endpoint:
+
+```bash
+curl -i http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Method: initialize" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"client","version":"1.0.0"}}}'
 ```
 
-List tools (replace `<SESSION_ID>`):
+The HTTP adapter does not allocate a session for this handshake. Legacy stdio
+clients continue to initialize once per connection.
 
-```bash
-curl -i http://localhost:3000/mcp \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -H "MCP-Protocol-Version: 2025-11-25" \
-  -H "mcp-session-id: <SESSION_ID>" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
-```
+## Transport Errors
 
-## Verbose Error Shape
+Unsupported modern request envelopes return JSON-RPC error `-32022`, with
+supported versions in `error.data.supported`. Legacy initialization negotiates
+the revision, and unsupported subsequent version headers return HTTP `400`.
+Host, Origin, authentication, and routing header checks still apply to both
+eras.
 
-Transport errors include debugging context in `error.data`:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": null,
-  "error": {
-    "code": -32000,
-    "message": "Invalid or missing session for /mcp request",
-    "data": {
-      "timestamp": "2026-02-21T02:08:22.749Z",
-      "phase": "streamable",
-      "method": "POST",
-      "path": "/mcp",
-      "hint": "Send initialize via POST /mcp without mcp-session-id first"
-    }
-  }
-}
-```
-
-## Legacy Compatibility Endpoints
-
-Set `AHK_MCP_LEGACY_SSE=1` before starting HTTP mode, then use:
-
-- `GET /sse` to open SSE stream
-- `POST /message?sessionId=<id>` (or `POST /messages?sessionId=<id>`) to send
-  requests
-
-Use legacy endpoints only for older clients that do not support Streamable HTTP.
+Run `npm run smoke:http` to verify both HTTP eras and `npm run smoke:mcp:2026`
+to verify modern discovery, request envelopes, and input round trips over stdio.
+`npm run smoke:mcp` covers legacy stdio initialization.

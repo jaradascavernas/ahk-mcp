@@ -338,23 +338,9 @@ export class AutoHotkeyMcpServer {
     this.setupPromptHandlers(server);
     this.setupResourceHandlers(server);
     this.setupCompletionHandlers(server);
-    this.setupLoggingHandlers(server);
     this.setupRootsHandlers(server);
 
     return server;
-  }
-
-  /**
-   * logging/setLevel is handled by the SDK's built-in handler (registered because the
-   * logging capability is declared), which records the per-session threshold that
-   * ctx.mcpReq.log() honors. Overriding it here would silently drop that threshold.
-   */
-  private setupLoggingHandlers(server: Server): void {
-    server.setNotificationHandler('notifications/cancelled', async notification => {
-      logger.info(
-        `Client cancelled request ${notification.params.requestId ?? 'unknown'}: ${notification.params.reason ?? 'no reason provided'}`
-      );
-    });
   }
 
   private setupRootsHandlers(server: Server): void {
