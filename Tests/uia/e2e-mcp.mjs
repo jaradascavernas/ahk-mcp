@@ -18,10 +18,9 @@ const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.ur
 
 const server = spawn('node', [path.join(ROOT, 'dist', 'index.js')], {
   cwd: ROOT,
-  env: {
-    ...process.env,
-    AHK_PATH: process.env.AHK_PATH || 'AutoHotkey64.exe',
-  },
+  // Preserve operator runtime settings and allow normal validated discovery.
+  // A synthesized relative AHK_PATH override would fail closed during runtime selection.
+  env: { ...process.env },
   stdio: ['pipe', 'pipe', 'pipe'],
 });
 

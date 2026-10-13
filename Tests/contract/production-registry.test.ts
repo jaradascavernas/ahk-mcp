@@ -153,7 +153,13 @@ const instrumentedEntry = `
     if (args.mode === 'outline') {
       const signal = currentSignal();
       if (!signal) throw new Error('v3 request context missing');
-      await new Promise(resolve => signal.addEventListener('abort', resolve, {once:true}));
+      await new Promise(resolve => {
+        signal.addEventListener('abort', () => {
+          process.stderr.write('PRODUCTION_CALL_ABORTED:' + String(signal.reason) + '\\n');
+          resolve();
+        }, {once:true});
+        process.stderr.write('PRODUCTION_CALL_READY\\n');
+      });
       return execute({...args, mode:'raw'});
     }
     return execute(args);
@@ -296,6 +302,53 @@ describe.each(['2025-11-25', '2026-07-28'])('production pipeline (%s)', era => {
     expect(result.error).toBeUndefined();
     expect(result.result?.isError).toBe(true);
     expect(result.result?._meta?.code).toBe('TIMEOUT');
+  });
+  it('aborts a production call when the client sends notifications/cancelled', async () => {
+    const observed: string[] = [];
+    let markReady: () => void;
+    let markAborted: (reason: string) => void;
+    const ready = new Promise<void>(resolve => {
+      markReady = resolve;
+    });
+    const aborted = new Promise<string>(resolve => {
+      markAborted = resolve;
+    });
+    const onData = (data: Buffer) => {
+      observed.push(String(data));
+      const output = observed.join('');
+      if (output.includes('PRODUCTION_CALL_READY')) markReady();
+      const reason = output.match(/PRODUCTION_CALL_ABORTED:([^\r\n]+)/)?.[1];
+      if (reason) markAborted(reason);
+    };
+    child.stderr.on('data', onData);
+    const running = request('tools/call', {
+      name: 'AHK_File_View',
+      arguments: { file: path.join(base, 'allowed', 'test.ahk'), mode: 'outline' },
+    });
+    const requestId = id;
+    // The SDK suppresses a cancelled call's response; observe the handler's
+    // signal rather than leave an unanswered RPC as the test's completion gate.
+    void running.catch(() => undefined);
+    try {
+      await ready;
+      child.stdin.write(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'notifications/cancelled',
+          params: {
+            requestId,
+            reason: 'client-cancel-regression',
+            ...(era === '2026-07-28'
+              ? { _meta: { 'io.modelcontextprotocol/protocolVersion': era } }
+              : {}),
+          },
+        }) + '\n'
+      );
+      expect(await aborted).toBe('client-cancel-regression');
+    } finally {
+      child.stderr.off('data', onData);
+      pending.delete(requestId);
+    }
   });
   it('gates paths detected from text before changing active-file state', async () => {
     const response = await request('tools/call', {
